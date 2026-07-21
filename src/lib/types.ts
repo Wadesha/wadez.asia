@@ -13,34 +13,34 @@ export interface POI {
 }
 
 export type POICategory =
-  | "warehouse"
-  | "distribution"
-  | "station"
-  | "port"
+  | "bus"
+  | "metro"
+  | "train"
+  | "coach"
   | "airport"
-  | "railway"
-  | "highway"
+  | "ferry"
+  | "tram"
   | "other";
 
 export const CATEGORY_LABELS: Record<POICategory, string> = {
-  warehouse: "仓库",
-  distribution: "配送中心",
-  station: "站点",
-  port: "港口",
+  bus: "公交站",
+  metro: "地铁站",
+  train: "火车站",
+  coach: "客运站",
   airport: "机场",
-  railway: "铁路枢纽",
-  highway: "公路枢纽",
+  ferry: "码头/轮渡",
+  tram: "有轨电车",
   other: "其他",
 };
 
 export const CATEGORY_ICONS: Record<POICategory, string> = {
-  warehouse: "🏭",
-  distribution: "📦",
-  station: "🚏",
-  port: "⚓",
+  bus: "🚌",
+  metro: "🚇",
+  train: "🚄",
+  coach: "🚐",
   airport: "✈️",
-  railway: "🚄",
-  highway: "🛣️",
+  ferry: "⛴️",
+  tram: "🚊",
   other: "📍",
 };
 

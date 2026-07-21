@@ -21,13 +21,13 @@ export default function FilterBar({
 }: FilterBarProps) {
   const categories: (POICategory | "all")[] = [
     "all",
-    "warehouse",
-    "distribution",
-    "station",
-    "port",
+    "bus",
+    "metro",
+    "train",
+    "coach",
     "airport",
-    "railway",
-    "highway",
+    "ferry",
+    "tram",
   ];
 
   return (

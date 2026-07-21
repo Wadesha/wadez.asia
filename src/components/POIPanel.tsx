@@ -31,7 +31,7 @@ export default function POIPanel({
 }: POIPanelProps) {
   const [name, setName] = useState(poi?.name || "");
   const [category, setCategory] = useState<POICategory>(
-    poi?.category || "warehouse"
+    poi?.category || "bus"
   );
   const [description, setDescription] = useState(poi?.description || "");
   const [address, setAddress] = useState(poi?.address || "");

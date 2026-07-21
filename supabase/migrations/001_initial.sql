@@ -1,19 +1,19 @@
--- Wadez.asia 物流地图数据库初始化
+-- Wadez.asia 公共交通地图数据库初始化
 -- 在 Supabase SQL Editor 中运行此文件
 
 -- 启用必要的扩展
 create extension if not exists "uuid-ossp";
 create extension if not exists "postgis";
 
--- POI 分类枚举
+-- POI 分类枚举（公共交通）
 create type poi_category as enum (
-  'warehouse',
-  'distribution',
-  'station',
-  'port',
+  'bus',
+  'metro',
+  'train',
+  'coach',
   'airport',
-  'railway',
-  'highway',
+  'ferry',
+  'tram',
   'other'
 );
 

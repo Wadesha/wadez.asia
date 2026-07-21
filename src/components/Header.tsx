@@ -26,7 +26,7 @@ export default function Header({ user }: HeaderProps) {
           <h1 className="text-lg font-bold text-gray-900">
             Wadez<span className="text-blue-600">.asia</span>
           </h1>
-          <p className="text-[10px] text-gray-400 -mt-0.5">物流地图平台</p>
+          <p className="text-[10px] text-gray-400 -mt-0.5">公共交通地图</p>
         </div>
 
         {/* 用户操作 */}

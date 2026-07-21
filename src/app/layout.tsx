@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Wadez.asia - 物流地图平台",
-  description: "专业物流交通 POI 地图，仓库、配送中心、站点一目了然",
-  keywords: ["物流", "地图", "POI", "仓库", "配送", "交通"],
+  title: "Wadez.asia - 公共交通地图",
+  description: "公共交通 POI 地图，公交站、地铁站、火车站、机场一目了然",
+  keywords: ["公共交通", "地图", "POI", "公交", "地铁", "火车", "交通"],
 };
 
 export default function RootLayout({
