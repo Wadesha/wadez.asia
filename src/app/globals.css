@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+/* 地图标记样式 */
+.poi-marker {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.marker-pin {
+  width: 36px;
+  height: 36px;
+  border-radius: 50% 50% 50% 0;
+  background: #ffffff;
+  border: 2px solid #3b82f6;
+  transform: rotate(-45deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease;
+}
+
+.poi-marker:hover .marker-pin,
+.poi-marker-selected .marker-pin {
+  background: #3b82f6;
+  border-color: #1d4ed8;
+  transform: rotate(-45deg) scale(1.15);
+}
+
+.marker-icon {
+  transform: rotate(45deg);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.marker-label {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #374151;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* 高德地图控件位置调整 */
+.amap-toolbar {
+  bottom: 80px !important;
+}
