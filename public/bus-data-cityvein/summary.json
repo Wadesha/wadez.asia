@@ -1,0 +1,83 @@
+{
+  "totalCities": 15,
+  "totalLines": 11922,
+  "totalPoints": 3828744,
+  "cities": {
+    "天津": {
+      "lines": 818,
+      "points": 318000,
+      "size": "11.67MB"
+    },
+    "上海": {
+      "lines": 1407,
+      "points": 364159,
+      "size": "13.40MB"
+    },
+    "广州": {
+      "lines": 1459,
+      "points": 527387,
+      "size": "19.51MB"
+    },
+    "深圳": {
+      "lines": 965,
+      "points": 433020,
+      "size": "16.04MB"
+    },
+    "杭州": {
+      "lines": 906,
+      "points": 276720,
+      "size": "10.20MB"
+    },
+    "南京": {
+      "lines": 748,
+      "points": 202798,
+      "size": "7.46MB"
+    },
+    "武汉": {
+      "lines": 686,
+      "points": 214847,
+      "size": "7.95MB"
+    },
+    "成都": {
+      "lines": 1182,
+      "points": 288798,
+      "size": "10.62MB"
+    },
+    "西安": {
+      "lines": 529,
+      "points": 165502,
+      "size": "6.03MB"
+    },
+    "重庆": {
+      "lines": 791,
+      "points": 297087,
+      "size": "11.01MB"
+    },
+    "苏州": {
+      "lines": 684,
+      "points": 195378,
+      "size": "7.17MB"
+    },
+    "长沙": {
+      "lines": 417,
+      "points": 152046,
+      "size": "5.61MB"
+    },
+    "郑州": {
+      "lines": 401,
+      "points": 99712,
+      "size": "3.62MB"
+    },
+    "济南": {
+      "lines": 391,
+      "points": 116104,
+      "size": "4.25MB"
+    },
+    "青岛": {
+      "lines": 538,
+      "points": 177186,
+      "size": "6.50MB"
+    }
+  },
+  "lastUpdate": "2026-07-27T10:55:54.498Z"
+}

@@ -1,0 +1,76 @@
+{
+  "total": 4243,
+  "cities": [
+    "北京",
+    "上海",
+    "广州",
+    "深圳",
+    "杭州"
+  ],
+  "categories": [
+    "公交站",
+    "地铁站",
+    "火车站",
+    "机场",
+    "地标",
+    "交通",
+    "码头"
+  ],
+  "byCity": [
+    {
+      "city": "北京",
+      "count": 861
+    },
+    {
+      "city": "上海",
+      "count": 905
+    },
+    {
+      "city": "广州",
+      "count": 840
+    },
+    {
+      "city": "深圳",
+      "count": 848
+    },
+    {
+      "city": "杭州",
+      "count": 789
+    }
+  ],
+  "byCategory": [
+    {
+      "category": "公交站",
+      "count": 750
+    },
+    {
+      "category": "地铁站",
+      "count": 750
+    },
+    {
+      "category": "火车站",
+      "count": 750
+    },
+    {
+      "category": "客运站",
+      "count": 0
+    },
+    {
+      "category": "机场",
+      "count": 419
+    },
+    {
+      "category": "码头",
+      "count": 74
+    },
+    {
+      "category": "地标",
+      "count": 750
+    },
+    {
+      "category": "交通",
+      "count": 750
+    }
+  ],
+  "lastUpdate": "2026-07-27T21:13:03.722Z"
+}

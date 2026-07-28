@@ -1,0 +1,9 @@
+{
+  "city": "北京",
+  "lastUpdate": "2026-07-27T07:12:37.180Z",
+  "totalLines": 0,
+  "version": "1.0.0",
+  "sources": [
+    "高德地图API"
+  ]
+}

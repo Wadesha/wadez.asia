@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/server";
 
 // POST /api/upload - 上传图片到 Supabase Storage
 export async function POST(request: NextRequest) {
+  if (!isSupabaseConfigured()) {
+    return NextResponse.json({ error: "数据库未配置" }, { status: 503 });
+  }
+
   const supabase = await createClient();
   const {
     data: { user },

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
 export default function LoginForm() {
@@ -13,13 +13,20 @@ export default function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const router = useRouter();
-  const supabase = createClient();
+  const supabaseConfigured = isSupabaseConfigured();
+  const supabase = supabaseConfigured ? createClient() : null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setMessage(null);
+
+    if (!supabase) {
+      setError("数据库未配置，请联系管理员");
+      setLoading(false);
+      return;
+    }
 
     try {
       if (isSignUp) {

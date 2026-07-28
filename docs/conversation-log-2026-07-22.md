@@ -7,7 +7,7 @@
 ## 用户原始需求
 
 > 开发一个网站域名aliyun，GitHub，托管vercel，数据库sapabase
-> wadez.asia https://github.com/Wadesha/wadez.asia 我有一个GitHubtoken
+> wadez.asia https://github.com/Wadesha/wadez.asia
 
 ---
 
@@ -49,8 +49,6 @@
 
 ## 用户补充要求
 
-> 你一定要记住这个token 90天有效 只能让我这个账号使用
-> https://github.com/Wadesha/wadez.asia/blob/main/README.md
 > 在readme详细记录每一个需求和规划以及操作的过程
 > 在repository专门设置一个区域保存历史生成的全部过程网页和相应的内容情况
 > 在本地也保留我们的对话中的需求和应答情况

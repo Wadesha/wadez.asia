@@ -16,6 +16,9 @@ export const metadata: Metadata = {
   title: "Wadez.asia - 公共交通地图",
   description: "公共交通 POI 地图，公交站、地铁站、火车站、机场一目了然",
   keywords: ["公共交通", "地图", "POI", "公交", "地铁", "火车", "交通"],
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({

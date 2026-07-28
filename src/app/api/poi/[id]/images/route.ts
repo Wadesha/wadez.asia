@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/server";
 
 // GET /api/poi/[id]/images - 获取 POI 图片
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!isSupabaseConfigured()) {
+    return NextResponse.json([]);
+  }
+
   const supabase = await createClient();
   const { id } = await params;
 

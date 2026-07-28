@@ -1,0 +1,10 @@
+{
+  "city": "北京",
+  "source": "北京市交通委员会",
+  "sourceUrl": "https://service.jtw.beijing.gov.cn/cxsjxz/",
+  "lastUpdate": "2026-07-27T10:09:05.032Z",
+  "totalLines": 1150,
+  "totalStations": 58697,
+  "quality": "trusted",
+  "format": "JSON"
+}

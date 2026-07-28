@@ -50,3 +50,30 @@ export interface Profile {
   avatar_url: string | null;
   created_at: string;
 }
+
+export interface BusRouteStop {
+  name: string;
+  lng: number;
+  lat: number;
+}
+
+export interface BusRouteLeg {
+  type: "bus" | "metro" | "walk";
+  lineName: string;
+  lineColor: string;
+  stops: BusRouteStop[];
+  distance: number;
+  duration: number;
+  price: number;
+}
+
+export interface BusRoute {
+  id: string;
+  legs: BusRouteLeg[];
+  totalDistance: number;
+  totalDuration: number;
+  totalPrice: number;
+  walkDistance: number;
+  transferCount: number;
+  summary: string;
+}

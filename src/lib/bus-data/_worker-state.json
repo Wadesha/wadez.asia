@@ -1,0 +1,78 @@
+[
+  {
+    "city": "北京",
+    "status": "completed",
+    "lastUpdate": "2026-07-27T06:46:33.103Z",
+    "totalLines": 0
+  },
+  {
+    "city": "上海",
+    "status": "completed",
+    "lastUpdate": "2026-07-27T08:20:46.855Z",
+    "totalLines": 0,
+    "lastError": "exit code 1"
+  },
+  {
+    "city": "广州",
+    "status": "completed",
+    "lastUpdate": "2026-07-27T08:20:53.547Z",
+    "totalLines": 0,
+    "lastError": "exit code 1"
+  },
+  {
+    "city": "深圳",
+    "status": "completed",
+    "lastUpdate": "2026-07-27T08:21:00.373Z",
+    "totalLines": 0,
+    "lastError": "exit code 1"
+  },
+  {
+    "city": "杭州",
+    "status": "completed",
+    "lastUpdate": "2026-07-27T08:21:07.090Z",
+    "totalLines": 0,
+    "lastError": "exit code 1"
+  },
+  {
+    "city": "南京",
+    "status": "completed",
+    "lastUpdate": "2026-07-27T08:21:13.782Z",
+    "totalLines": 0,
+    "lastError": "exit code 1"
+  },
+  {
+    "city": "武汉",
+    "status": "completed",
+    "lastUpdate": "2026-07-27T08:21:20.496Z",
+    "totalLines": 0,
+    "lastError": "exit code 1"
+  },
+  {
+    "city": "成都",
+    "status": "completed",
+    "lastUpdate": "2026-07-27T08:21:27.266Z",
+    "totalLines": 0,
+    "lastError": "exit code 1"
+  },
+  {
+    "city": "西安",
+    "status": "completed",
+    "lastUpdate": "2026-07-27T08:21:34.056Z",
+    "totalLines": 0,
+    "lastError": "exit code 1"
+  },
+  {
+    "city": "天津",
+    "status": "completed",
+    "lastUpdate": "2026-07-27T08:21:40.681Z",
+    "totalLines": 0,
+    "lastError": "exit code 1"
+  },
+  {
+    "city": "重庆",
+    "status": "completed",
+    "lastUpdate": "2026-07-27T08:21:47.592Z",
+    "totalLines": 0,
+    "lastError": "exit code 1"
+  }
+]

@@ -43,3 +43,19 @@ next-env.d.ts
 *.bak
 AGENTS.md
 CLAUDE.md
+
+# Cache and logs
+.npm-cache/
+logs/
+*.log
+
+# OS files
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+# Env
+.env.local
+.env.*.local

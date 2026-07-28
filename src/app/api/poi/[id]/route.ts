@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/server";
 
 // PUT /api/poi/[id] - 更新 POI
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!isSupabaseConfigured()) {
+    return NextResponse.json({ error: "数据库未配置" }, { status: 503 });
+  }
+
   const supabase = await createClient();
   const { id } = await params;
   const {
@@ -48,6 +52,10 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!isSupabaseConfigured()) {
+    return NextResponse.json({ error: "数据库未配置" }, { status: 503 });
+  }
+
   const supabase = await createClient();
   const { id } = await params;
   const {
