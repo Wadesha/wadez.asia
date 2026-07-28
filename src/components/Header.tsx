@@ -22,42 +22,42 @@ const PLANNING_TOOLS = [
   { href: "/land-use", label: "🏗️ 用地性质图谱", desc: "土地利用分类与结构" },
   { href: "/development-intensity", label: "🏢 开发强度分析", desc: "容积率密度高度" },
   { href: "/population-density", label: "👥 人口密度分布", desc: "人口热力与格局" },
-  { href: "#", label: "🏥 公共服务设施", desc: "教育医疗文体覆盖", soon: true },
-  { href: "#", label: "🌆 城市天际线", desc: "高度控制形态", soon: true },
-  { href: "#", label: "🚗 交通承载力", desc: "路网密度拥堵", soon: true },
+  { href: "/public-service", label: "🏥 公共服务设施", desc: "教育医疗文体覆盖" },
+  { href: "/skyline", label: "🌆 城市天际线", desc: "高度控制形态" },
+  { href: "/traffic-capacity", label: "🚗 交通承载力", desc: "路网密度拥堵" },
 ];
 
 const BUSINESS_TOOLS = [
   { href: "/business-siting", label: "📍 商铺选址评估", desc: "六维综合评分找好铺" },
-  { href: "#", label: "🏪 商圈竞争力分析", desc: "知己知彼百战不殆", soon: true },
-  { href: "#", label: "👥 客流预测模拟器", desc: "人潮在哪里机会在哪", soon: true },
+  { href: "/business-cluster", label: "🏪 商圈竞争力分析", desc: "知己知彼百战不殆" },
+  { href: "/passenger-flow", label: "👥 客流预测模拟器", desc: "人潮在哪里机会在哪" },
 ];
 
 const ENV_TOOLS = [
   { href: "/air-quality", label: "🌬️ 空气质量监测", desc: "实时空气品质分布" },
-  { href: "#", label: "🌡️ 气象数据中心", desc: "温湿度降水全掌握", soon: true },
-  { href: "#", label: "🌊 水文监测站", desc: "河流水位流量监测", soon: true },
+  { href: "/heat-island", label: "🌡️ 城市热岛效应", desc: "温度分布热岛强度" },
+  { href: "/noise-pollution", label: "🔊 噪声污染地图", desc: "分贝分布污染等级" },
 ];
 
 const TOURISM_TOOLS = [
   { href: "/tourist-resource", label: "🗺️ 文旅资源地图", desc: "景点美食文化一网打尽" },
-  { href: "#", label: "📊 文旅数据分析", desc: "客流消费热度洞察", soon: true },
-  { href: "#", label: "🗺️ 智慧导览系统", desc: "沉浸式游览体验", soon: true },
+  { href: "/intangible-heritage", label: "🎭 非遗文化分布", desc: "非遗项目传承人" },
+  { href: "/smart-tourism", label: "🧭 智慧旅游路线", desc: "最优路线时间预算" },
 ];
 
 const NATURAL_RESOURCE_TOOLS = [
   { href: "/mineral-resource", label: "⛏️ 矿产资源分布", desc: "矿山储量类型全景" },
   { href: "/land-use-resource", label: "🗺️ 土地利用现状", desc: "用地斑块分类统计" },
   { href: "/water-resource", label: "💧 水资源分布", desc: "河流湖泊水库水系" },
-  { href: "#", label: "🌳 林业资源", desc: "森林覆盖率林地", soon: true },
-  { href: "#", label: "🌊 海洋资源", desc: "海岸线海岛滩涂", soon: true },
+  { href: "/forest-resource", label: "🌳 林业资源", desc: "森林覆盖率林地" },
+  { href: "/marine-resource", label: "🌊 海洋资源", desc: "海岸线海岛滩涂" },
 ];
 
 const INDUSTRY_ECON_TOOLS = [
   { href: "/industry-park", label: "🏭 产业园区分布", desc: "园区级别产业定位" },
   { href: "/economic-data", label: "📊 经济数据图谱", desc: "省域GDP人口财政" },
   { href: "/investment", label: "💰 招商投资地图", desc: "重点项目优惠政策" },
-  { href: "#", label: "📈 产业图谱", desc: "产业链上下游关系", soon: true },
+  { href: "/industry-chain", label: "📈 产业链图谱", desc: "产业链上下游关系" },
 ];
 
 export default function Header({ user }: HeaderProps) {
@@ -175,15 +175,10 @@ export default function Header({ user }: HeaderProps) {
                   <a
                     key={tool.href}
                     href={tool.href}
-                    className={`block px-3 py-2 transition ${tool.soon ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-50"}`}
+                    className="block px-3 py-2 hover:bg-gray-50 transition"
                   >
-                    <div className="text-xs font-medium text-gray-800 flex items-center gap-1.5">
+                    <div className="text-xs font-medium text-gray-800">
                       {tool.label}
-                      {tool.soon && (
-                        <span className="text-[8px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full">
-                          即将
-                        </span>
-                      )}
                     </div>
                     <div className="text-[10px] text-gray-400 mt-0.5">
                       {tool.desc}
@@ -221,15 +216,10 @@ export default function Header({ user }: HeaderProps) {
                   <a
                     key={tool.href}
                     href={tool.href}
-                    className={`block px-3 py-2 transition ${tool.soon ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-50"}`}
+                    className="block px-3 py-2 hover:bg-gray-50 transition"
                   >
-                    <div className="text-xs font-medium text-gray-800 flex items-center gap-1.5">
+                    <div className="text-xs font-medium text-gray-800">
                       {tool.label}
-                      {tool.soon && (
-                        <span className="text-[8px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full">
-                          即将
-                        </span>
-                      )}
                     </div>
                     <div className="text-[10px] text-gray-400 mt-0.5">
                       {tool.desc}
@@ -245,15 +235,10 @@ export default function Header({ user }: HeaderProps) {
                   <a
                     key={tool.href}
                     href={tool.href}
-                    className={`block px-3 py-2 transition ${tool.soon ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-50"}`}
+                    className="block px-3 py-2 hover:bg-gray-50 transition"
                   >
-                    <div className="text-xs font-medium text-gray-800 flex items-center gap-1.5">
+                    <div className="text-xs font-medium text-gray-800">
                       {tool.label}
-                      {tool.soon && (
-                        <span className="text-[8px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full">
-                          即将
-                        </span>
-                      )}
                     </div>
                     <div className="text-[10px] text-gray-400 mt-0.5">
                       {tool.desc}
@@ -269,15 +254,10 @@ export default function Header({ user }: HeaderProps) {
                   <a
                     key={tool.href}
                     href={tool.href}
-                    className={`block px-3 py-2 transition ${tool.soon ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-50"}`}
+                    className="block px-3 py-2 hover:bg-gray-50 transition"
                   >
-                    <div className="text-xs font-medium text-gray-800 flex items-center gap-1.5">
+                    <div className="text-xs font-medium text-gray-800">
                       {tool.label}
-                      {tool.soon && (
-                        <span className="text-[8px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full">
-                          即将
-                        </span>
-                      )}
                     </div>
                     <div className="text-[10px] text-gray-400 mt-0.5">
                       {tool.desc}
@@ -293,15 +273,10 @@ export default function Header({ user }: HeaderProps) {
                   <a
                     key={tool.href}
                     href={tool.href}
-                    className={`block px-3 py-2 transition ${tool.soon ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-50"}`}
+                    className="block px-3 py-2 hover:bg-gray-50 transition"
                   >
-                    <div className="text-xs font-medium text-gray-800 flex items-center gap-1.5">
+                    <div className="text-xs font-medium text-gray-800">
                       {tool.label}
-                      {tool.soon && (
-                        <span className="text-[8px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full">
-                          即将
-                        </span>
-                      )}
                     </div>
                     <div className="text-[10px] text-gray-400 mt-0.5">
                       {tool.desc}
@@ -317,15 +292,10 @@ export default function Header({ user }: HeaderProps) {
                   <a
                     key={tool.href}
                     href={tool.href}
-                    className={`block px-3 py-2 transition ${tool.soon ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-50"}`}
+                    className="block px-3 py-2 hover:bg-gray-50 transition"
                   >
-                    <div className="text-xs font-medium text-gray-800 flex items-center gap-1.5">
+                    <div className="text-xs font-medium text-gray-800">
                       {tool.label}
-                      {tool.soon && (
-                        <span className="text-[8px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full">
-                          即将
-                        </span>
-                      )}
                     </div>
                     <div className="text-[10px] text-gray-400 mt-0.5">
                       {tool.desc}
