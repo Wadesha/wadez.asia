@@ -32,6 +32,7 @@ export interface BusinessSitingArea {
   locations: LocationScore[];
   avgScore: number;
   bestLocation?: LocationScore;
+  dataSource: "simulated" | "real";
 }
 
 export const BUSINESS_TYPE_LABELS: Record<BusinessType, string> = {
@@ -154,6 +155,7 @@ export function generateBusinessSitingArea(
     locations,
     avgScore,
     bestLocation: locations[0],
+    dataSource: "simulated",
   };
 }
 

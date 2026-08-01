@@ -80,7 +80,7 @@ export default function InvestmentPage() {
               </Link>
               <div>
                 <h1 className="text-lg font-bold text-gray-900">
-                  💰 招商投资地图
+                  招商投资地图
                 </h1>
                 <p className="text-[10px] text-gray-500 mt-0.5">
                   投资优选 — 重点项目、产业载体、优惠政策一站式全景
@@ -103,6 +103,12 @@ export default function InvestmentPage() {
                 ))}
               </select>
             </div>
+          </div>
+
+          <div className="flex items-center justify-end pt-2 border-t border-gray-100">
+            <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-[10px] rounded border border-gray-200">
+              模拟数据
+            </span>
           </div>
 
           {/* 概览数据 */}
@@ -430,8 +436,13 @@ export default function InvestmentPage() {
           </div>
         </div>
 
-        <div className="mt-6 text-center text-[10px] text-gray-400">
-          招商投资地图 — 投资优选，重点项目产业载体优惠政策一站式全景
+        <div className="mt-6 space-y-1">
+          <div className="text-center text-[10px] text-gray-400">
+            招商投资地图 — 投资优选，重点项目产业载体优惠政策一站式全景
+          </div>
+          <div className="text-center text-[10px] text-gray-400">
+            数据来源：模拟生成数据，仅供演示参考
+          </div>
         </div>
       </div>
     </div>

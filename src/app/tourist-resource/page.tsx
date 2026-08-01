@@ -27,6 +27,7 @@ export default function TouristResourcePage() {
   const [cityId, setCityId] = useState(cities[0]?.id || "");
   const [selectedResource, setSelectedResource] = useState<TouristResource | null>(null);
   const [filterType, setFilterType] = useState<TouristType | "all">("all");
+  const [showDataHint, setShowDataHint] = useState(false);
 
   const currentCity = useMemo(
     () => cities.find((c) => c.id === cityId),
@@ -80,6 +81,10 @@ export default function TouristResourcePage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-100 rounded-md">
+                <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+                <span className="text-[10px] text-gray-500">模拟数据</span>
+              </div>
               <select
                 value={cityId}
                 onChange={(e) => {
@@ -109,8 +114,27 @@ export default function TouristResourcePage() {
             <span>
               平均分：<b className="text-yellow-600">⭐ {currentCity.avgRating}</b>
             </span>
-            <span className="ml-auto text-gray-400">v1.0.0</span>
+            <span className="text-gray-200">|</span>
+            <span>更新：{currentCity.lastUpdated}</span>
+            <button
+              onClick={() => setShowDataHint(true)}
+              className="ml-auto text-[10px] px-2 py-1 bg-gray-800 text-white rounded hover:bg-gray-700 transition"
+            >
+              接入真实数据
+            </button>
           </div>
+
+          {showDataHint && (
+            <div className="mt-2 px-3 py-2 bg-gray-100 border border-gray-200 rounded-lg text-[11px] text-gray-600 flex items-center justify-between">
+              <span>真实POI数据接入功能开发中，敬请期待</span>
+              <button
+                onClick={() => setShowDataHint(false)}
+                className="text-gray-400 hover:text-gray-600 text-xs"
+              >
+                ✕
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">

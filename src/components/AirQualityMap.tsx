@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { loadAMap, isAMapConfigured } from "@/lib/load-amap";
 import { AQI_LEVELS, type AQIStation } from "@/lib/air-quality-data";
+import SchematicMap from "@/components/SchematicMap";
+import OsmMap from "@/components/OsmMap";
+import { useMapMode } from "@/context/MapModeContext";
 
 interface AirQualityMapProps {
   stations: AQIStation[];
@@ -20,26 +24,74 @@ export default function AirQualityMap({
   onStationClick,
   selectedId,
 }: AirQualityMapProps) {
+  const { mode } = useMapMode();
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
+  const [mapError, setMapError] = useState<string | null>(null);
+
+  const schematicProps = useMemo(() => {
+    type ShadeType = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900;
+    const aqiToShade = (level: string): ShadeType => {
+      switch (level) {
+        case "good": return 200;
+        case "moderate": return 400;
+        case "unhealthy-sensitive": return 600;
+        case "unhealthy": return 700;
+        case "very-unhealthy": return 800;
+        case "hazardous": return 900;
+        default: return 500;
+      }
+    };
+
+    const points = stations.map((station) => ({
+      lng: station.lng,
+      lat: station.lat,
+      id: station.id,
+      shade: aqiToShade(station.level),
+      r: 4,
+      onClick: () => onStationClick?.(station),
+    }));
+
+    const legend = [
+      { label: "优", kind: "point" as const, shade: 200 },
+      { label: "良", kind: "point" as const, shade: 400 },
+      { label: "轻度污染", kind: "point" as const, shade: 600 },
+      { label: "中度污染+", kind: "point" as const, shade: 800 },
+    ];
+
+    return { points, legend };
+  }, [stations, onStationClick]);
 
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
-    const AMap = (window as any).AMap;
-    if (!AMap) return;
+    if (!isAMapConfigured()) {
+      setMapError("高德地图 API Key 未配置");
+      return;
+    }
 
-    const map = new AMap.Map(mapRef.current, {
-      center,
-      zoom,
-      mapStyle: "amap://styles/light",
-      features: ["bg", "road", "building"],
-    });
-    mapInstanceRef.current = map;
+    let cancelled = false;
+    loadAMap()
+      .then((AMap) => {
+        if (cancelled || !mapRef.current || mapInstanceRef.current) return;
+        const map = new AMap.Map(mapRef.current, {
+          center,
+          zoom,
+          mapStyle: "amap://styles/light",
+          features: ["bg", "road", "building"],
+        });
+        mapInstanceRef.current = map;
+      })
+      .catch((err) => {
+        if (!cancelled) setMapError(err.message);
+      });
 
     return () => {
-      map.destroy();
-      mapInstanceRef.current = null;
+      cancelled = true;
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.destroy();
+        mapInstanceRef.current = null;
+      }
     };
   }, [center, zoom]);
 
@@ -96,6 +148,42 @@ export default function AirQualityMap({
     );
     map.setBounds(bounds, [60, 60, 60, 60], false);
   }, [stations, selectedId, onStationClick]);
+
+  if (mode === "schematic") {
+    return (
+      <div className={`w-full ${height}`}>
+        <SchematicMap
+          height={500}
+          points={schematicProps.points}
+          legend={schematicProps.legend}
+          title="空气质量示意图"
+          showCompass
+        />
+      </div>
+    );
+  }
+
+  if (mode === "osm") {
+    return (
+      <div className={`w-full ${height}`}>
+        <OsmMap
+          width={800}
+          height={500}
+          points={schematicProps.points}
+          legend={schematicProps.legend}
+          title="空气质量示意图"
+        />
+      </div>
+    );
+  }
+
+  if (mapError) {
+    return (
+      <div className={`w-full ${height} bg-gray-100 rounded-lg flex items-center justify-center`}>
+        <span className="text-gray-400 text-xs">{mapError}</span>
+      </div>
+    );
+  }
 
   return (
     <div className="relative rounded-xl overflow-hidden border border-gray-200">

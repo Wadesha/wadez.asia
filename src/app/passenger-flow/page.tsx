@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import {
   getPredictions,
   getCities,
@@ -10,6 +11,17 @@ import {
   type FlowPrediction,
   type LocationType,
 } from "@/lib/passenger-flow-data";
+import { forecastTrend } from "@/lib/trend-forecast";
+import TrendForecastPanel from "@/components/TrendForecastPanel";
+
+const PassengerFlowMap = dynamic(() => import("@/components/PassengerFlowMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-[400px] flex items-center justify-center bg-gray-100 rounded-xl">
+      <span className="text-xs text-gray-400">地图加载中...</span>
+    </div>
+  ),
+});
 
 export default function PassengerFlowPage() {
   const predictions = getPredictions();
@@ -36,6 +48,36 @@ export default function PassengerFlowPage() {
     );
     return { totalDaily, avgPeak, avgConfidence };
   }, [filteredPredictions]);
+
+  const mapCenter = useMemo<[number, number]>(() => {
+    const cityPreds = predictions.filter((p) => p.city === city);
+    if (cityPreds.length === 0) return [116.46, 39.915];
+    const avgLng = cityPreds.reduce((s, p) => s + p.lng, 0) / cityPreds.length;
+    const avgLat = cityPreds.reduce((s, p) => s + p.lat, 0) / cityPreds.length;
+    return [avgLng, avgLat];
+  }, [predictions, city]);
+
+  const flowForecast = useMemo(() => {
+    const historical = [
+      { year: 2021, value: Math.max(1000, stats.totalDaily * 0.75) },
+      { year: 2022, value: Math.max(1000, stats.totalDaily * 0.82) },
+      { year: 2023, value: Math.max(1000, stats.totalDaily * 0.9) },
+      { year: 2024, value: Math.max(1000, stats.totalDaily * 0.96) },
+      { year: 2025, value: stats.totalDaily },
+    ];
+    return forecastTrend(historical, 5);
+  }, [stats.totalDaily]);
+
+  const peakForecast = useMemo(() => {
+    const historical = [
+      { year: 2021, value: Math.max(100, stats.avgPeak * 0.78) },
+      { year: 2022, value: Math.max(100, stats.avgPeak * 0.85) },
+      { year: 2023, value: Math.max(100, stats.avgPeak * 0.92) },
+      { year: 2024, value: Math.max(100, stats.avgPeak * 0.97) },
+      { year: 2025, value: stats.avgPeak },
+    ];
+    return forecastTrend(historical, 5);
+  }, [stats.avgPeak]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -150,10 +192,26 @@ export default function PassengerFlowPage() {
                 ))}
               </div>
             </div>
+
+            <TrendForecastPanel result={flowForecast} title="日均客流趋势预测" />
+            <TrendForecastPanel result={peakForecast} title="峰值客流趋势预测" />
           </div>
 
-          {/* 右侧：详情 */}
-          <div className="lg:col-span-2">
+          {/* 右侧：地图 + 详情 */}
+          <div className="lg:col-span-2 space-y-3">
+            {/* 客流热力地图 */}
+            <div className="bg-white border border-gray-200 rounded-xl p-3">
+              <h3 className="text-xs font-semibold text-gray-800 mb-2.5">
+                客流热力分布
+              </h3>
+              <PassengerFlowMap
+                predictions={filteredPredictions}
+                center={mapCenter}
+                height="h-[400px]"
+                onPredictionClick={setSelectedPrediction}
+                selectedId={selectedPrediction?.id}
+              />
+            </div>
             {selectedPrediction ? (
               <div className="space-y-3">
                 {/* 基础信息 */}

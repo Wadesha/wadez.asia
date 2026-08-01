@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
-import AMapLoader from "@amap/amap-jsapi-loader";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { loadAMap, isAMapConfigured } from "@/lib/load-amap";
 import { POI, CATEGORY_ICONS, BusRoute } from "@/lib/types";
 import { getCachedRoutes, setCachedRoutes } from "@/lib/route-cache";
+import SchematicMap from "./SchematicMap";
+import OsmMap from "@/components/OsmMap";
+import { useMapMode } from "@/context/MapModeContext";
 
 interface MapViewProps {
   pois: POI[];
@@ -36,25 +39,188 @@ export default function MapView({
   selectedRoute,
   intercityPath,
 }: MapViewProps) {
+  const { mode } = useMapMode();
   const mapRef = useRef<any>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<any[]>([]);
   const routePolylinesRef = useRef<any[]>([]);
   const routeMarkersRef = useRef<any[]>([]);
   const [mapReady, setMapReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const transferRef = useRef<any>(null);
+
+  const mapData = useMemo(() => {
+    const CAT_MAP: Record<string, 0 | 1 | 2 | 3 | 4> = {
+      food: 0,
+      shopping: 1,
+      transport: 2,
+      medical: 3,
+      education: 4,
+      entertainment: 0,
+      finance: 1,
+      government: 2,
+      other: 3,
+    };
+
+    const points = pois.map((poi) => ({
+      id: poi.id,
+      lng: poi.longitude,
+      lat: poi.latitude,
+      category: (CAT_MAP[poi.category] ?? 3) as 0 | 1 | 2 | 3 | 4,
+      r: selectedPoi?.id === poi.id ? 5 : 3,
+      label: poi.name,
+      onClick: () => onSelectPoi(poi),
+    }));
+
+    const polylines: Array<{
+      id: string;
+      path: Array<{ lng: number; lat: number }>;
+      style: 1 | 2 | 3;
+      shade: 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900;
+      width: number;
+      label?: string;
+    }> = [];
+
+    const markers: Array<{
+      id: string;
+      lng: number;
+      lat: number;
+      label: string;
+      kind: 0 | 1 | 2 | 3;
+    }> = [];
+
+    if (intercityPath && intercityPath.length >= 2) {
+      polylines.push({
+        id: "intercity",
+        path: intercityPath.map(([lng, lat]) => ({ lng, lat })),
+        style: 1,
+        shade: 700,
+        width: 2,
+        label: "城际线路",
+      });
+      markers.push({
+        id: "ic-origin",
+        lng: intercityPath[0][0],
+        lat: intercityPath[0][1],
+        label: "起点",
+        kind: 0,
+      });
+      markers.push({
+        id: "ic-dest",
+        lng: intercityPath[intercityPath.length - 1][0],
+        lat: intercityPath[intercityPath.length - 1][1],
+        label: "终点",
+        kind: 1,
+      });
+    }
+
+    if (selectedRoute) {
+      let segId = 0;
+      selectedRoute.legs.forEach((leg) => {
+        if (leg.type === "walk" || leg.stops.length < 2) return;
+        polylines.push({
+          id: `route-leg-${segId++}`,
+          path: leg.stops.map((s) => ({ lng: s.lng, lat: s.lat })),
+          style: leg.type === "metro" ? 2 : 1,
+          shade: 600,
+          width: 2,
+          label: leg.lineName,
+        });
+      });
+    }
+
+    if (origin && !intercityPath) {
+      markers.push({
+        id: "origin",
+        lng: origin.lng,
+        lat: origin.lat,
+        label: "起点",
+        kind: 0,
+      });
+    }
+    if (destination && !intercityPath) {
+      markers.push({
+        id: "dest",
+        lng: destination.lng,
+        lat: destination.lat,
+        label: "终点",
+        kind: 1,
+      });
+    }
+
+    const legend = [
+      { label: "餐饮/娱乐", kind: "point" as const, category: 0 },
+      { label: "购物/金融", kind: "point" as const, category: 1 },
+      { label: "交通/政务", kind: "point" as const, category: 2 },
+      { label: "医疗/其他", kind: "point" as const, category: 3 },
+      { label: "教育", kind: "point" as const, category: 4 },
+      { label: "线路", kind: "line" as const, shade: 600 },
+    ];
+
+    return { points, polylines, markers, legend, title: `${cityName} - 地图示意图` };
+  }, [pois, selectedPoi, onSelectPoi, cityName, origin, destination, selectedRoute, intercityPath]);
+
+  const handleFakeMapClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isAdding) return;
+    const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const xr = x / rect.width;
+    const yr = y / rect.height;
+    const lng = cityCenter[0] - 0.3 + xr * 0.6;
+    const lat = cityCenter[1] + 0.25 - yr * 0.5;
+    onMapClick(lng, lat);
+  };
+
+  if (mode === "schematic") {
+    return (
+      <div
+        className="w-full h-full"
+        onClick={handleFakeMapClick}
+        style={{ cursor: isAdding ? "crosshair" : "default" }}
+      >
+        <SchematicMap
+          width={800}
+          height={500}
+          points={mapData.points}
+          polylines={mapData.polylines}
+          markers={mapData.markers}
+          legend={mapData.legend}
+          title={mapData.title}
+          showCompass
+          className="w-full h-full"
+        />
+      </div>
+    );
+  }
+
+  if (mode === "osm") {
+    return (
+      <div
+        className="w-full h-full"
+        onClick={handleFakeMapClick}
+        style={{ cursor: isAdding ? "crosshair" : "default" }}
+      >
+        <OsmMap
+          height={500}
+          points={mapData.points}
+          polylines={mapData.polylines}
+          markers={mapData.markers}
+          legend={mapData.legend}
+          title={mapData.title}
+        />
+      </div>
+    );
+  }
 
   // 初始化地图
   useEffect(() => {
-    (window as any)._AMapSecurityConfig = {
-      securityJsCode: process.env.NEXT_PUBLIC_AMAP_SECURITY_CODE,
-    };
+    if (!isAMapConfigured()) {
+      setError("高德地图 API Key 未配置");
+      return;
+    }
 
-    AMapLoader.load({
-      key: process.env.NEXT_PUBLIC_AMAP_KEY!,
-      version: "2.0",
-      plugins: ["AMap.Scale", "AMap.ToolBar", "AMap.Geolocation", "AMap.Transfer", "AMap.Geocoder"],
-    })
+    loadAMap(["AMap.Scale", "AMap.ToolBar", "AMap.Geolocation", "AMap.Transfer", "AMap.Geocoder"])
       .then((AMap) => {
         if (!mapContainerRef.current) return;
 

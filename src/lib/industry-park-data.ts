@@ -27,6 +27,7 @@ export interface IndustryPark {
   leadingEnterprises: string[];
   developmentPhase: "construction" | "growing" | "mature" | "upgrading";
   description: string;
+  dataSource: "simulated";
 }
 
 export interface IndustryCity {
@@ -37,6 +38,7 @@ export interface IndustryCity {
   totalParks: number;
   totalOutput: number;
   dominantIndustry: string;
+  dataSource: "simulated";
 }
 
 export const INDUSTRY_TYPE_LABELS: Record<IndustryType, string> = {
@@ -155,6 +157,7 @@ function generatePark(
     leadingEnterprises,
     developmentPhase: phase,
     description: `${LEVEL_LABELS[level].label}${INDUSTRY_TYPE_LABELS[type]}产业园区，规划面积${area}平方公里`,
+    dataSource: "simulated" as const,
   };
 }
 
@@ -193,6 +196,7 @@ function generateCity(
     totalParks: parks.length,
     totalOutput,
     dominantIndustry: INDUSTRY_TYPE_LABELS[dominantType as IndustryType],
+    dataSource: "simulated" as const,
   };
 }
 

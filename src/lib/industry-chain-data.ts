@@ -14,9 +14,10 @@ export interface IndustryChain {
   name: string;
   city: string;
   nodes: ChainNode[];
- 总产值: number;
+  totalOutput: number;
   enterpriseCount: number;
   clusterScore: number;
+  dataSource: "simulated";
 }
 
 export const CHAIN_LEVEL_LABELS: Record<ChainLevel, string> = {
@@ -84,9 +85,10 @@ function generateChain(
     name,
     city,
     nodes,
-    总产值: totalOutput,
+    totalOutput,
     enterpriseCount,
     clusterScore,
+    dataSource: "simulated" as const,
   };
 }
 

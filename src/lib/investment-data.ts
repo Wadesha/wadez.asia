@@ -27,6 +27,7 @@ export interface InvestmentProject {
   description: string;
   contactPerson?: string;
   contactPhone?: string;
+  dataSource: "simulated";
 }
 
 export interface InvestmentCity {
@@ -38,6 +39,7 @@ export interface InvestmentCity {
   totalProjects: number;
   keyIndustries: string[];
   policies: string[];
+  dataSource: "simulated";
 }
 
 export const INVESTMENT_TYPE_LABELS: Record<InvestmentType, string> = {
@@ -159,6 +161,7 @@ function generateProject(
     description: `${INVESTMENT_TYPE_LABELS[type]}重点招商项目，总投资${totalInvestment}亿元`,
     contactPerson: "张经理",
     contactPhone: "0755-8888" + (1000 + idx * 7),
+    dataSource: "simulated" as const,
   };
 }
 
@@ -204,6 +207,7 @@ function generateInvestmentCity(
     totalProjects: projects.length,
     keyIndustries,
     policies,
+    dataSource: "simulated" as const,
   };
 }
 

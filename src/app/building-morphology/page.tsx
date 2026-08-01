@@ -13,6 +13,11 @@ import {
   type BuildingFunction,
 } from "@/lib/building-morphology-data";
 import type { ColorMode, ViewMode } from "@/components/BuildingMap";
+import {
+  useRealAround,
+  BUILDING_TYPE_CODES,
+} from "@/lib/use-real-around";
+import { DataSourceToggle, type DataSource } from "@/components/DataSourceToggle";
 
 const BuildingMap = dynamic(() => import("@/components/BuildingMap"), {
   ssr: false,
@@ -44,6 +49,9 @@ export default function BuildingMorphologyPage() {
   const [compareAreaId, setCompareAreaId] = useState<string>(
     areas[1]?.id || ""
   );
+  const [dataSource, setDataSource] = useState<DataSource>("simulated");
+  const [locationInput, setLocationInput] = useState<string>("");
+  const realBuildings = useRealAround();
 
   const currentArea = useMemo(
     () => areas.find((a) => a.id === areaId),
@@ -68,6 +76,21 @@ export default function BuildingMorphologyPage() {
     []
   );
 
+  // 真实数据：以当前区域中心作为默认搜索坐标 "lng,lat"
+  const cityCenter = currentArea
+    ? `${currentArea.center[0]},${currentArea.center[1]}`
+    : "";
+
+  const handleSearchRealBuildings = () => {
+    const loc = locationInput.trim() || cityCenter;
+    if (!loc) return;
+    realBuildings.search({
+      location: loc,
+      types: BUILDING_TYPE_CODES,
+      radius: 3000,
+    });
+  };
+
   if (!currentArea || !stats) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -79,6 +102,109 @@ export default function BuildingMorphologyPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-4">
+        <DataSourceToggle
+          source={dataSource}
+          onChange={setDataSource}
+          realDataCount={realBuildings.pois.length}
+          simulatedCount={stats.totalCount}
+          loading={realBuildings.loading}
+          error={realBuildings.error}
+          apiName="高德API"
+        />
+
+        {dataSource === "real" ? (
+          <div className="space-y-3">
+            <div className="bg-white border border-gray-200 rounded-xl p-3">
+              <h3 className="text-xs font-semibold text-gray-800 mb-2.5">
+                周边建筑搜索
+              </h3>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={locationInput}
+                  onChange={(e) => setLocationInput(e.target.value)}
+                  placeholder={`坐标 (lng,lat)，默认当前区域中心：${cityCenter}`}
+                  className="flex-1 px-2 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md text-gray-700 outline-none focus:ring-1 focus:ring-gray-300"
+                />
+                <button
+                  onClick={handleSearchRealBuildings}
+                  disabled={realBuildings.loading}
+                  className="px-3 py-1.5 text-xs rounded-md bg-gray-900 text-white hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {realBuildings.loading ? "搜索中..." : "搜索周边建筑"}
+                </button>
+              </div>
+              <p className="text-[10px] text-gray-500 mt-2 leading-relaxed">
+                以当前区域（{currentArea.name}）中心为基点，搜索半径 3km 内的商务住宅类 POI。
+              </p>
+
+              <div className="flex items-center gap-2 mt-2.5">
+                {realBuildings.loading && (
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-200">
+                    查询中...
+                  </span>
+                )}
+                {!realBuildings.loading && realBuildings.error && (
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-200">
+                    ⚠ {realBuildings.error}
+                  </span>
+                )}
+                {!realBuildings.loading &&
+                  !realBuildings.error &&
+                  realBuildings.isRealData && (
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-green-50 text-green-600 border border-green-200">
+                      ✓ 共 {realBuildings.pois.length} 条真实建筑 POI
+                    </span>
+                  )}
+                {!realBuildings.loading &&
+                  !realBuildings.error &&
+                  !realBuildings.isRealData && (
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-gray-50 text-gray-500 border border-gray-200">
+                      尚未查询，点击按钮获取真实数据
+                    </span>
+                  )}
+              </div>
+            </div>
+
+            <div className="bg-white border border-gray-200 rounded-xl p-3">
+              <h3 className="text-xs font-semibold text-gray-800 mb-2.5">
+                真实建筑 POI 列表
+              </h3>
+              {realBuildings.pois.length === 0 ? (
+                <div className="text-[11px] text-gray-400 py-6 text-center">
+                  暂无数据，请点击“搜索周边建筑”。
+                </div>
+              ) : (
+                <div className="space-y-1.5 max-h-[600px] overflow-y-auto">
+                  {realBuildings.pois.map((poi) => (
+                    <div
+                      key={poi.id}
+                      className="border border-gray-200 rounded-lg p-2 hover:bg-gray-50 transition"
+                    >
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className="text-xs font-medium text-gray-800 truncate">
+                          {poi.name}
+                        </span>
+                        <span className="text-[10px] text-gray-400 flex-shrink-0 ml-2">
+                          {(poi.distance / 1000).toFixed(2)} km
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-[10px] text-gray-500">
+                        <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                          {poi.type || "未分类"}
+                        </span>
+                        <span className="truncate">
+                          {poi.address || "无地址信息"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
         <div className="bg-white border border-gray-200 rounded-xl p-4 mb-3">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
@@ -538,6 +664,8 @@ export default function BuildingMorphologyPage() {
         <div className="mt-6 text-center text-[10px] text-gray-400">
           建筑形态图谱 — 从三维视角解读城市的物质形态
         </div>
+          </>
+        )}
       </div>
     </div>
   );

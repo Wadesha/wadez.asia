@@ -24,6 +24,7 @@ export interface MarineCity {
   fisheryOutput: number;
   portCount: number;
   resources: MarineResource[];
+  dataSource: "simulated" | "real";
 }
 
 export const MARINE_TYPE_LABELS: Record<MarineResourceType, string> = {
@@ -138,6 +139,7 @@ function generateMarineCity(
     fisheryOutput,
     portCount,
     resources,
+    dataSource: "simulated",
   };
 }
 

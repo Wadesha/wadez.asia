@@ -7,6 +7,10 @@ import {
   getLandUseAreas,
   type LandUseParcel,
 } from "@/lib/land-use-data";
+import { getAgeStructure } from "@/lib/population-density-data";
+import { forecastTrend } from "@/lib/trend-forecast";
+import TrendForecastPanel from "@/components/TrendForecastPanel";
+import SmartRecommend from "@/components/SmartRecommend";
 
 const LandUseMap = dynamic(() => import("@/components/LandUseMap"), {
   ssr: false,
@@ -70,6 +74,30 @@ export default function PopulationDensityPage() {
     const totalResArea = residentialParcels.reduce((s, p) => s + p.areaHa, 0);
     return totalResArea > 0 ? totalPopulation / totalResArea : 0;
   }, [residentialParcels, totalPopulation]);
+
+  const ageStructure = useMemo(() => getAgeStructure(areaId), [areaId]);
+
+  const densityForecast = useMemo(() => {
+    const historical = [
+      { year: 2021, value: Math.max(100, avgDensity * 0.85) },
+      { year: 2022, value: Math.max(100, avgDensity * 0.9) },
+      { year: 2023, value: Math.max(100, avgDensity * 0.95) },
+      { year: 2024, value: Math.max(100, avgDensity * 0.98) },
+      { year: 2025, value: avgDensity },
+    ];
+    return forecastTrend(historical, 5);
+  }, [avgDensity]);
+
+  const popForecast = useMemo(() => {
+    const historical = [
+      { year: 2021, value: Math.max(1000, totalPopulation * 0.88) },
+      { year: 2022, value: Math.max(1000, totalPopulation * 0.92) },
+      { year: 2023, value: Math.max(1000, totalPopulation * 0.96) },
+      { year: 2024, value: Math.max(1000, totalPopulation * 0.99) },
+      { year: 2025, value: totalPopulation },
+    ];
+    return forecastTrend(historical, 5);
+  }, [totalPopulation]);
 
   if (!currentArea) {
     return (
@@ -199,13 +227,7 @@ export default function PopulationDensityPage() {
                 年龄结构（模拟）
               </h3>
               <div className="space-y-1.5">
-                {[
-                  { age: "0-14岁", pct: 15, color: "bg-cyan-400" },
-                  { age: "15-29岁", pct: 25, color: "bg-blue-400" },
-                  { age: "30-44岁", pct: 28, color: "bg-purple-400" },
-                  { age: "45-59岁", pct: 20, color: "bg-orange-400" },
-                  { age: "60岁以上", pct: 12, color: "bg-gray-400" },
-                ].map((item) => (
+                {ageStructure.groups.map((item) => (
                   <div key={item.age} className="flex items-center gap-2">
                     <span className="text-[9px] text-gray-500 w-16 shrink-0">{item.age}</span>
                     <div className="flex-1 h-4 bg-gray-50 rounded-full overflow-hidden">
@@ -222,10 +244,13 @@ export default function PopulationDensityPage() {
               </div>
               <div className="mt-3 pt-2 border-t border-gray-100">
                 <div className="text-[10px] text-gray-500">
-                  老龄化率：<span className="font-medium text-gray-700">12%</span>
+                  老龄化率：<span className="font-medium text-gray-700">{ageStructure.agingRate}%</span>
                 </div>
                 <div className="text-[10px] text-gray-500 mt-0.5">
-                  抚养比：<span className="font-medium text-gray-700">0.45</span>
+                  抚养比：<span className="font-medium text-gray-700">{ageStructure.dependencyRatio}</span>
+                </div>
+                <div className="text-[10px] text-gray-500 mt-0.5">
+                  中位年龄：<span className="font-medium text-gray-700">{ageStructure.medianAge}岁</span>
                 </div>
               </div>
             </div>
@@ -248,6 +273,9 @@ export default function PopulationDensityPage() {
                 </div>
               </div>
             </div>
+
+            <TrendForecastPanel result={popForecast} title="人口趋势预测" unit="人" />
+            <TrendForecastPanel result={densityForecast} title="密度趋势预测" unit="人/ha" />
           </div>
 
           {/* 右侧地图 + 详情 */}
@@ -353,6 +381,7 @@ export default function PopulationDensityPage() {
           </div>
         </div>
 
+        <SmartRecommend />
         <div className="mt-6 text-center text-[10px] text-gray-400">
           人口密度分布 — 人口空间格局决定城市服务设施布局
         </div>

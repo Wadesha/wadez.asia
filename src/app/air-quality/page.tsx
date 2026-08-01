@@ -10,6 +10,16 @@ import {
   type AQIStation,
   type AQILevel,
 } from "@/lib/air-quality-data";
+import { detectAnomalies } from "@/lib/anomaly-detector";
+import AnomalyPanel from "@/components/AnomalyPanel";
+import { calculateDataQuality } from "@/lib/data-quality";
+import QualityBadge from "@/components/QualityBadge";
+import { checkDataFreshness } from "@/lib/auto-update";
+import DataUpdateBanner from "@/components/DataUpdateBanner";
+import { calibrateData } from "@/lib/multi-source-calibration";
+import CalibrationInfo from "@/components/CalibrationInfo";
+import { recordLineage } from "@/lib/data-lineage";
+import LineagePanel from "@/components/LineagePanel";
 
 const AirQualityMap = dynamic(() => import("@/components/AirQualityMap"), {
   ssr: false,
@@ -33,11 +43,56 @@ export default function AirQualityPage() {
   const cities = getAQICities();
   const [cityId, setCityId] = useState(cities[0]?.id || "");
   const [selectedStation, setSelectedStation] = useState<AQIStation | null>(null);
+  const [dataMode] = useState<"simulated" | "real">("simulated");
 
   const currentCity = useMemo(
     () => cities.find((c) => c.id === cityId),
     [cityId, cities]
   );
+
+  const quality = useMemo(() => {
+    if (!currentCity) return null;
+    return calculateDataQuality({
+      dataSource: currentCity.dataSource,
+      recordCount: currentCity.stations.length,
+    });
+  }, [currentCity]);
+
+  const freshness = useMemo(() => {
+    if (!currentCity) return null;
+    return checkDataFreshness(currentCity.updateTime, currentCity.dataSource);
+  }, [currentCity]);
+
+  const aqiAnomalies = useMemo(() => {
+    if (!currentCity) return { anomalies: [], total: 0, criticalCount: 0, method: "std" as const };
+    return detectAnomalies(
+      currentCity.stations.map((s) => ({ id: s.id, name: s.name, value: s.aqi })),
+      { threshold: 1.5, method: "std", anomalyType: "aqi" }
+    );
+  }, [currentCity]);
+
+  // 多源数据校准：以各监测站点AQI为源
+  const aqiCalibration = useMemo(() => {
+    if (!currentCity) return { calibratedValue: 0, confidence: 0, sources: [], method: "mean" as const, outlierCount: 0, stdDev: 0 };
+    const sources = currentCity.stations.map((s) => ({
+      sourceId: s.id,
+      sourceName: s.name,
+      value: s.aqi,
+      timestamp: Date.now(),
+      weight: 1,
+    }));
+    return calibrateData(sources, { method: "mean", outlierThreshold: 2 });
+  }, [currentCity]);
+
+  // 数据血缘记录
+  const aqiLineage = useMemo(() => {
+    if (!currentCity) return null;
+    return recordLineage(`aqi-${currentCity.id}`, "环境监测模拟数据", [
+      { stepId: "fetch", stepName: "获取站点数据", timestamp: Date.now() },
+      { stepId: "avg", stepName: "计算城市均值", timestamp: Date.now() },
+      { stepId: "level", stepName: "判定污染等级", timestamp: Date.now() },
+    ], { dependencies: [currentCity.id] });
+  }, [currentCity]);
 
   if (!currentCity) {
     return (
@@ -66,8 +121,13 @@ export default function AirQualityPage() {
               </Link>
               <div>
                 <h1 className="text-lg font-bold text-gray-900">
-                  🌬️ 空气质量监测
+                  空气质量监测
                 </h1>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                    {dataMode === "simulated" ? "模拟数据" : "真实数据"}
+                  </span>
+                </div>
                 <p className="text-[10px] text-gray-500 mt-0.5">
                   呼吸的每一口空气都重要 — 实时空气质量分布
                 </p>
@@ -91,6 +151,7 @@ export default function AirQualityPage() {
             </div>
           </div>
 
+          {freshness && <DataUpdateBanner result={freshness} className="mb-2" />}
           <div className="flex items-center gap-4 text-[11px] text-gray-500 pt-2 border-t border-gray-100 flex-wrap">
             <span>
               城市：<b className="text-gray-800">{currentCity.name}</b>
@@ -107,7 +168,10 @@ export default function AirQualityPage() {
             <span>
               更新时间：<b className="text-gray-800">{currentCity.updateTime}</b>
             </span>
-            <span className="ml-auto text-gray-400">v1.0.0</span>
+            <span className="ml-auto flex items-center gap-2">
+              {quality && <QualityBadge quality={quality} />}
+              <span className="text-gray-400">v1.0.0</span>
+            </span>
           </div>
         </div>
 
@@ -162,6 +226,16 @@ export default function AirQualityPage() {
               </div>
             </div>
 
+            {/* 监测站点分布说明 */}
+            <div className="bg-white border border-gray-200 rounded-xl p-3">
+              <h3 className="text-xs font-semibold text-gray-800 mb-2">
+                站点分布说明
+              </h3>
+              <p className="text-[10px] text-gray-500 leading-relaxed">
+                监测站点基于城市POI分区模拟分布，覆盖行政区中心、商业密集区、居住区及交通枢纽。真实部署需接入生态环境部发布平台或地方环境监测中心API。
+              </p>
+            </div>
+
             {/* 监测站列表 */}
             <div className="bg-white border border-gray-200 rounded-xl p-3">
               <h3 className="text-xs font-semibold text-gray-800 mb-2.5">
@@ -203,6 +277,10 @@ export default function AirQualityPage() {
                   })}
               </div>
             </div>
+
+            <AnomalyPanel result={aqiAnomalies} title="AQI异常检测" />
+            <CalibrationInfo result={aqiCalibration} title="AQI多源校准" unit="" />
+            {aqiLineage && <LineagePanel lineage={aqiLineage} title="数据血缘" />}
           </div>
 
           {/* 右侧地图 + 详情 */}
@@ -266,40 +344,40 @@ export default function AirQualityPage() {
             {/* 健康建议 */}
             <div className="bg-white border border-gray-200 rounded-xl p-4">
               <h3 className="text-xs font-semibold text-gray-800 mb-3">
-                💡 健康建议（{avgLevel?.label}）
+                健康建议（{avgLevel?.label}）
               </h3>
               <div className="text-[11px] text-gray-600 leading-relaxed space-y-1.5">
                 {currentCity.avgAQI <= 50 && (
                   <>
-                    <p>✅ 空气质量令人满意，基本无空气污染</p>
-                    <p>🏃 各类人群可正常活动，建议户外活动</p>
+                    <p>空气质量令人满意，基本无空气污染</p>
+                    <p>各类人群可正常活动，建议户外活动</p>
                   </>
                 )}
                 {currentCity.avgAQI > 50 && currentCity.avgAQI <= 100 && (
                   <>
-                    <p>✅ 空气质量可接受，某些污染物可能对极少数敏感人群有较弱影响</p>
-                    <p>🏃 正常人群可正常户外活动，敏感人群适当减少户外剧烈运动</p>
+                    <p>空气质量可接受，某些污染物可能对极少数敏感人群有较弱影响</p>
+                    <p>正常人群可正常户外活动，敏感人群适当减少户外剧烈运动</p>
                   </>
                 )}
                 {currentCity.avgAQI > 100 && currentCity.avgAQI <= 150 && (
                   <>
-                    <p>⚠️ 敏感人群症状有轻度加剧，健康人群出现刺激症状</p>
-                    <p>😷 儿童、老年人及心脏病、呼吸系统疾病患者减少长时间、高强度户外锻炼</p>
-                    <p>👥 一般人群适量减少户外运动</p>
+                    <p>敏感人群症状有轻度加剧，健康人群出现刺激症状</p>
+                    <p>儿童、老年人及心脏病、呼吸系统疾病患者减少长时间、高强度户外锻炼</p>
+                    <p>一般人群适量减少户外运动</p>
                   </>
                 )}
                 {currentCity.avgAQI > 150 && currentCity.avgAQI <= 200 && (
                   <>
-                    <p>⚠️ 进一步加剧易感人群症状，可能对健康人群心脏、呼吸系统有影响</p>
-                    <p>😷 儿童、老年人及心脏病、肺病患者应停留在室内，停止户外运动</p>
-                    <p>👥 一般人群减少户外运动</p>
+                    <p>进一步加剧易感人群症状，可能对健康人群心脏、呼吸系统有影响</p>
+                    <p>儿童、老年人及心脏病、肺病患者应停留在室内，停止户外运动</p>
+                    <p>一般人群减少户外运动</p>
                   </>
                 )}
                 {currentCity.avgAQI > 200 && (
                   <>
-                    <p>🚨 健康人群运动耐受力降低，有明显强烈症状，提前出现某些疾病</p>
-                    <p>🏠 老年人和病人应当留在室内，避免体力消耗，一般人群应避免户外活动</p>
-                    <p>😷 外出请佩戴N95级防护口罩</p>
+                    <p>健康人群运动耐受力降低，有明显强烈症状，提前出现某些疾病</p>
+                    <p>老年人和病人应当留在室内，避免体力消耗，一般人群应避免户外活动</p>
+                    <p>外出请佩戴N95级防护口罩</p>
                   </>
                 )}
               </div>

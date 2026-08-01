@@ -29,6 +29,7 @@ export interface HeatIslandCity {
   avgHeatIslandIntensity: number;
   zones: HeatZone[];
   mitigationStrategies: string[];
+  dataSource: "simulated" | "real";
 }
 
 export const HEAT_LEVEL_LABELS: Record<HeatLevel, string> = {
@@ -155,6 +156,7 @@ function generateCityData(
     avgHeatIslandIntensity,
     zones,
     mitigationStrategies: strategies.slice(0, 3 + Math.floor(seededRandom(zones.length) * 2)),
+    dataSource: "simulated",
   };
 }
 

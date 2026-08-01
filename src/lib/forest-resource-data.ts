@@ -22,6 +22,7 @@ export interface ForestCity {
   totalStock: number;
   protectedAreas: number;
   forests: ForestArea[];
+  dataSource: "simulated" | "real";
 }
 
 export const FOREST_TYPE_LABELS: Record<ForestType, string> = {
@@ -111,6 +112,7 @@ function generateCityData(
     totalStock,
     protectedAreas,
     forests,
+    dataSource: "simulated",
   };
 }
 

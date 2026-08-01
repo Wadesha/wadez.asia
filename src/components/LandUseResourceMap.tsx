@@ -1,10 +1,30 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { loadAMap, isAMapConfigured } from "@/lib/load-amap";
 import {
   LAND_USE_COLORS,
+  LAND_USE_LABELS,
   type LandUsePatch,
+  type LandUseType,
 } from "@/lib/land-use-resource-data";
+import SchematicMap, {
+  type SchematicPolygon,
+} from "@/components/SchematicMap";
+import OsmMap from "@/components/OsmMap";
+import { useMapMode } from "@/context/MapModeContext";
+
+const LAND_USE_SHADE_MAP: Record<LandUseType, 100 | 200 | 300 | 400 | 500 | 600> = {
+  cultivated: 300,
+  forest: 300,
+  grassland: 200,
+  water: 200,
+  urban: 600,
+  rural: 400,
+  industrial: 400,
+  transport: 400,
+  other: 400,
+};
 
 interface LandUseMapProps {
   patches: LandUsePatch[];
@@ -23,29 +43,71 @@ export default function LandUseMap({
   onPatchClick,
   selectedId,
 }: LandUseMapProps) {
+  const { mode } = useMapMode();
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const polygonsRef = useRef<any[]>([]);
+  const [mapError, setMapError] = useState<string | null>(null);
+
+  const { schematicPolygons, legendItems } = useMemo(() => {
+    const polygons: SchematicPolygon[] = [];
+    const presentTypes = new Set<LandUseType>();
+
+    patches.forEach((patch) => {
+      presentTypes.add(patch.type);
+      polygons.push({
+        id: patch.id,
+        path: patch.path.map(([lng, lat]) => ({ lng, lat })),
+        label: patch.name,
+        shade: LAND_USE_SHADE_MAP[patch.type],
+        opacity: 0.6,
+        onClick: () => onPatchClick?.(patch),
+      });
+    });
+
+    const legend = Array.from(presentTypes).map((type) => ({
+      label: LAND_USE_LABELS[type],
+      kind: "area" as const,
+      shade: LAND_USE_SHADE_MAP[type],
+    }));
+
+    return { schematicPolygons: polygons, legendItems: legend };
+  }, [patches, onPatchClick]);
 
   useEffect(() => {
+    if (mode === "schematic") return;
     if (!mapRef.current || mapInstanceRef.current) return;
-    const AMap = (window as any).AMap;
-    if (!AMap) return;
+    if (!isAMapConfigured()) {
+      setMapError("高德地图 API Key 未配置");
+      return;
+    }
 
-    const map = new AMap.Map(mapRef.current, {
-      center,
-      zoom,
-      mapStyle: "amap://styles/light",
-    });
-    mapInstanceRef.current = map;
+    let cancelled = false;
+    loadAMap()
+      .then((AMap) => {
+        if (cancelled || !mapRef.current || mapInstanceRef.current) return;
+        const map = new AMap.Map(mapRef.current, {
+          center,
+          zoom,
+          mapStyle: "amap://styles/light",
+        });
+        mapInstanceRef.current = map;
+      })
+      .catch((err) => {
+        if (!cancelled) setMapError(err.message);
+      });
 
     return () => {
-      map.destroy();
-      mapInstanceRef.current = null;
+      cancelled = true;
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.destroy();
+        mapInstanceRef.current = null;
+      }
     };
-  }, [center, zoom]);
+  }, [center, zoom, mode]);
 
   useEffect(() => {
+    if (mode === "schematic") return;
     const map = mapInstanceRef.current;
     if (!map || !patches.length) return;
 
@@ -82,12 +144,41 @@ export default function LandUseMap({
       new AMap.LngLat(Math.max(...lngs), Math.max(...lats))
     );
     map.setBounds(bounds, [40, 40, 40, 40], false);
-  }, [patches, selectedId, onPatchClick]);
+  }, [patches, selectedId, onPatchClick, mode]);
+
+  if (mode === "schematic") {
+    return (
+      <SchematicMap
+        width={800}
+        height={500}
+        polygons={schematicPolygons}
+        legend={legendItems}
+      />
+    );
+  }
+
+  if (mode === "osm") {
+    return (
+      <OsmMap
+        width={800}
+        height={500}
+        polygons={schematicPolygons}
+        legend={legendItems}
+      />
+    );
+  }
+
+  if (mapError) {
+    return (
+      <div className={`w-full ${height} bg-gray-100 rounded-lg flex items-center justify-center`}>
+        <span className="text-gray-400 text-xs">{mapError}</span>
+      </div>
+    );
+  }
 
   return (
     <div className="relative rounded-xl overflow-hidden border border-gray-200">
       <div ref={mapRef} className={`w-full ${height}`} />
-      {/* 图例 */}
       <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-sm rounded-lg px-3 py-2 shadow-md border border-gray-100">
         <div className="text-[10px] text-gray-500 mb-1.5 font-medium">用地类型</div>
         <div className="grid grid-cols-3 gap-x-2 gap-y-1">

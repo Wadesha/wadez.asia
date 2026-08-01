@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import {
   getBusinessClusters,
   getCities,
@@ -11,6 +12,18 @@ import {
   type BusinessCluster,
   type ClusterLevel,
 } from "@/lib/business-cluster-data";
+
+const BusinessClusterMap = dynamic(
+  () => import("@/components/BusinessClusterMap"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-[500px] flex items-center justify-center bg-gray-50 rounded-xl border border-gray-300">
+        <span className="text-xs text-gray-400">地图加载中...</span>
+      </div>
+    ),
+  }
+);
 
 export default function BusinessClusterPage() {
   const clusters = getBusinessClusters();
@@ -38,6 +51,19 @@ export default function BusinessClusterPage() {
     );
     return { totalBrands, totalStores, avgCompetition, avgAttractiveness };
   }, [filteredClusters]);
+
+  const cityCenter = useMemo<[number, number]>(() => {
+    const cityClusters = clusters.filter((c) => c.city === city);
+    if (!cityClusters.length) return [116.46, 39.915];
+    const avgLng = cityClusters.reduce((s, c) => s + c.center[0], 0) / cityClusters.length;
+    const avgLat = cityClusters.reduce((s, c) => s + c.center[1], 0) / cityClusters.length;
+    return [avgLng, avgLat];
+  }, [clusters, city]);
+
+  const handleClusterClick = useCallback(
+    (cluster: BusinessCluster) => setSelectedCluster(cluster),
+    []
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -160,6 +186,19 @@ export default function BusinessClusterPage() {
 
           {/* 右侧：详情 */}
           <div className="lg:col-span-2">
+            {/* 商圈分布地图 */}
+            <div className="bg-white border border-gray-200 rounded-xl p-3 mb-3">
+              <div className="flex items-center justify-between mb-2.5">
+                <h3 className="text-xs font-semibold text-gray-800">商圈分布地图</h3>
+                <span className="text-[10px] text-gray-400">点击标记查看详情</span>
+              </div>
+              <BusinessClusterMap
+                clusters={filteredClusters}
+                center={cityCenter}
+                onClusterClick={handleClusterClick}
+                selectedId={selectedCluster?.id}
+              />
+            </div>
             {selectedCluster ? (
               <div className="space-y-3">
                 {/* 基础信息 */}

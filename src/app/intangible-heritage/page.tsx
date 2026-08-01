@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import {
   getHeritages,
   getCities,
@@ -12,6 +13,18 @@ import {
   type HeritageLevel,
   type HeritageCategory,
 } from "@/lib/intangible-heritage-data";
+
+const IntangibleHeritageMap = dynamic(
+  () => import("@/components/IntangibleHeritageMap"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-[400px] w-full rounded-xl border border-gray-200 bg-gray-50 flex items-center justify-center">
+        <div className="text-xs text-gray-400">地图加载中...</div>
+      </div>
+    ),
+  }
+);
 
 export default function IntangibleHeritagePage() {
   const heritages = getHeritages();
@@ -31,6 +44,17 @@ export default function IntangibleHeritagePage() {
       ),
     [heritages, city, levelFilter, categoryFilter]
   );
+
+  const mapCenter = useMemo<[number, number]>(() => {
+    const cityHeritages = heritages.filter((h) => h.city === city);
+    if (!cityHeritages.length) return [116.42, 39.93];
+    if (cityHeritages.length === 1) {
+      return [cityHeritages[0].lng, cityHeritages[0].lat];
+    }
+    const avgLng = cityHeritages.reduce((s, h) => s + h.lng, 0) / cityHeritages.length;
+    const avgLat = cityHeritages.reduce((s, h) => s + h.lat, 0) / cityHeritages.length;
+    return [avgLng, avgLat];
+  }, [heritages, city]);
 
   const stats = useMemo(() => {
     const nationalCount = filteredHeritages.filter((h) => h.level === "national").length;
@@ -149,6 +173,16 @@ export default function IntangibleHeritagePage() {
 
           {/* 右侧详情 */}
           <div className="lg:col-span-2">
+            <div className="bg-white border border-gray-200 rounded-xl p-3 mb-3">
+              <h3 className="text-xs font-semibold text-gray-800 mb-2">非遗分布地图</h3>
+              <IntangibleHeritageMap
+                heritages={filteredHeritages}
+                center={mapCenter}
+                height="h-[400px]"
+                selectedId={selectedHeritage?.id}
+                onHeritageClick={(h) => setSelectedHeritage(h)}
+              />
+            </div>
             {selectedHeritage ? (
               <div className="space-y-3">
                 <div className="bg-white border border-gray-200 rounded-xl p-4">

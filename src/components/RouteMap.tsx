@@ -1,7 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import type { SimulatedCrossCityRoute } from "@/lib/national-cities";
+import { loadAMap, isAMapConfigured } from "@/lib/load-amap";
+import SchematicMap, {
+  type SchematicPolyline,
+  type SchematicMarker,
+} from "@/components/SchematicMap";
+import OsmMap from "@/components/OsmMap";
+import { useMapMode } from "@/context/MapModeContext";
 
 interface RouteMapProps {
   route: SimulatedCrossCityRoute;
@@ -58,38 +65,131 @@ function getDeterministicOffset(base: number, seed: string, range: number): numb
   return base + ((hash / 0x7fffffff) - 0.5) * range;
 }
 
-function loadAMapScript(): Promise<any> {
-  return new Promise((resolve, reject) => {
-    if ((window as any).AMap) {
-      resolve((window as any).AMap);
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = `https://webapi.amap.com/maps?v=2.0&key=${process.env.NEXT_PUBLIC_AMAP_KEY}&securityCode=${process.env.NEXT_PUBLIC_AMAP_SECURITY_CODE}&plugin=AMap.Geocoder`;
-    script.async = true;
-    script.onload = () => {
-      const AMap = (window as any).AMap;
-      if (AMap) {
-        resolve(AMap);
-      } else {
-        reject(new Error("AMap not loaded"));
-      }
-    };
-    script.onerror = () => {
-      reject(new Error("Failed to load AMap script"));
-    };
-    document.head.appendChild(script);
-  });
-}
-
 export default function RouteMap({ route, fromCity, toCity }: RouteMapProps) {
+  const { mode: mapMode } = useMapMode();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
   const mapRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
   const polylinesRef = useRef<any[]>([]);
+
+  const routePoints = useMemo(() => {
+    const pts: [number, number][] = [];
+    let currentLng = CITY_CENTERS[fromCity]?.[0] || 116.4074;
+    let currentLat = CITY_CENTERS[fromCity]?.[1] || 39.9042;
+    pts.push([currentLng, currentLat]);
+    route.segments.forEach((seg, idx) => {
+      if (seg.type === "bus") {
+        const cityCenter = CITY_CENTERS[seg.city || fromCity];
+        if (cityCenter) {
+          currentLng = getDeterministicOffset(cityCenter[0], `${seg.line}-${idx}-lng`, 0.5);
+          currentLat = getDeterministicOffset(cityCenter[1], `${seg.line}-${idx}-lat`, 0.5);
+        } else {
+          currentLng = getDeterministicOffset(currentLng, `${seg.line}-${idx}-lng`, 1);
+          currentLat = getDeterministicOffset(currentLat, `${seg.line}-${idx}-lat`, 1);
+        }
+      } else {
+        const toCityCenter = CITY_CENTERS[seg.toCity || toCity];
+        if (toCityCenter) {
+          currentLng = (currentLng + toCityCenter[0]) / 2;
+          currentLat = (currentLat + toCityCenter[1]) / 2;
+        }
+      }
+      pts.push([currentLng, currentLat]);
+    });
+    const toCenter = CITY_CENTERS[toCity];
+    if (toCenter) {
+      pts.push([toCenter[0], toCenter[1]]);
+    }
+    return pts;
+  }, [route, fromCity, toCity]);
+
+  const schematicMarkers = useMemo<SchematicMarker[]>(() => {
+    const result: SchematicMarker[] = [];
+    const startPos = routePoints[0];
+    result.push({
+      lng: startPos[0],
+      lat: startPos[1],
+      label: fromCity,
+      kind: 0,
+    });
+    route.segments.forEach((seg, idx) => {
+      if (seg.type === "walk" && idx > 0) {
+        const pointIdx = idx + 1;
+        if (routePoints[pointIdx]) {
+          result.push({
+            lng: routePoints[pointIdx][0],
+            lat: routePoints[pointIdx][1],
+            label: `${seg.from}↔${seg.to}`,
+            kind: 2,
+          });
+        }
+      }
+    });
+    const endPos = routePoints[routePoints.length - 1];
+    result.push({
+      lng: endPos[0],
+      lat: endPos[1],
+      label: toCity,
+      kind: 1,
+    });
+    return result;
+  }, [route, routePoints, fromCity, toCity]);
+
+  const schematicPolylines = useMemo<SchematicPolyline[]>(() => {
+    const result: SchematicPolyline[] = [];
+    let startIdx = 0;
+    route.segments.forEach((seg, idx) => {
+      const endIdx = idx + 2;
+      if (endIdx <= routePoints.length) {
+        const segPts = routePoints.slice(startIdx, endIdx);
+        result.push({
+          id: `seg-${idx}`,
+          path: segPts.map(([lng, lat]) => ({ lng, lat })),
+          style: seg.type === "walk" ? 2 : 1,
+          shade: seg.type === "walk" ? 400 : 700,
+          width: seg.type === "walk" ? 1.5 : 2.5,
+          label: seg.type === "bus" ? seg.line : "步行",
+        });
+        startIdx = endIdx - 1;
+      }
+    });
+    return result;
+  }, [route, routePoints]);
+
+  const schematicLegend = [
+    { label: "公交", kind: "line" as const, shade: 700 },
+    { label: "步行", kind: "line" as const, shade: 400 },
+  ];
+
+  if (mapMode === "schematic") {
+    return (
+      <div className="bg-white border border-gray-200 rounded-lg p-2">
+        <SchematicMap
+          height={224}
+          polylines={schematicPolylines}
+          markers={schematicMarkers}
+          legend={schematicLegend}
+          title={`${fromCity} → ${toCity} 路线示意图`}
+          showCompass
+        />
+      </div>
+    );
+  }
+  if (mapMode === "osm") {
+    return (
+      <div className="bg-white border border-gray-200 rounded-lg p-2">
+        <OsmMap
+          height={500}
+          polylines={schematicPolylines}
+          markers={schematicMarkers}
+          legend={schematicLegend}
+          title={`${fromCity} → ${toCity} 路线示意图`}
+        />
+      </div>
+    );
+  }
 
   const drawRoute = useCallback((AMap: any, currentMap: any) => {
     if (!currentMap || !route) return;
@@ -212,9 +312,14 @@ export default function RouteMap({ route, fromCity, toCity }: RouteMapProps) {
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
+    if (!isAMapConfigured()) {
+      setMapError("高德地图 API Key 未配置，地图无法显示");
+      return;
+    }
+
     const initMap = async () => {
       try {
-        const AMap = await loadAMapScript();
+        const AMap = await loadAMap(["AMap.Geocoder"]);
 
         const fromCenter = CITY_CENTERS[fromCity] || [116.4074, 39.9042];
         const toCenter = CITY_CENTERS[toCity] || [117.2009, 39.0842];

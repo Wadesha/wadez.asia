@@ -9,6 +9,10 @@ import {
   type RegionEconData,
   type EconMetricKey,
 } from "@/lib/economic-data";
+import { calculateDataQuality } from "@/lib/data-quality";
+import QualityBadge from "@/components/QualityBadge";
+import { checkDataFreshness } from "@/lib/auto-update";
+import DataUpdateBanner from "@/components/DataUpdateBanner";
 
 const EconDataMap = dynamic(() => import("@/components/EconDataMap"), {
   ssr: false,
@@ -37,6 +41,19 @@ export default function EconomicDataPage() {
     () => datasets.find((d) => d.id === datasetId),
     [datasetId, datasets]
   );
+
+  const quality = useMemo(() => {
+    if (!currentDataset) return null;
+    return calculateDataQuality({
+      dataSource: currentDataset.dataSource,
+      recordCount: currentDataset.regions.length,
+    });
+  }, [currentDataset]);
+
+  const freshness = useMemo(() => {
+    if (!currentDataset) return null;
+    return checkDataFreshness(undefined, currentDataset.dataSource);
+  }, [currentDataset]);
 
   const sortedRegions = useMemo(() => {
     if (!currentDataset) return [];
@@ -68,7 +85,7 @@ export default function EconomicDataPage() {
               </Link>
               <div>
                 <h1 className="text-lg font-bold text-gray-900">
-                  📊 经济数据图谱
+                  经济数据图谱
                 </h1>
                 <p className="text-[10px] text-gray-500 mt-0.5">
                   数字看中国 — 省域经济全景数据可视化
@@ -93,6 +110,7 @@ export default function EconomicDataPage() {
             </div>
           </div>
 
+          {freshness && <DataUpdateBanner result={freshness} className="mb-2" />}
           <div className="flex items-center gap-4 text-[11px] text-gray-500 pt-2 border-t border-gray-100 flex-wrap">
             <span>
               总GDP：<b className="text-blue-600">{(currentDataset.totalGdp / 10000).toFixed(0)} 万亿</b>
@@ -109,7 +127,13 @@ export default function EconomicDataPage() {
             <span>
               省级单位：<b className="text-gray-800">{currentDataset.regions.length}</b>
             </span>
-            <span className="ml-auto text-gray-400">v1.0.0</span>
+            <span className="ml-auto flex items-center gap-2">
+              {quality && <QualityBadge quality={quality} />}
+              <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-[10px] rounded border border-gray-200">
+                基于公开统计数据
+              </span>
+              <span className="text-gray-400">v1.0.0</span>
+            </span>
           </div>
         </div>
 
@@ -216,7 +240,7 @@ export default function EconomicDataPage() {
                       </span>
                     </div>
                     <p className="text-[11px] text-gray-500 mt-0.5">
-                      {currentDataset.year}年经济数据 · 面积{selectedRegion.areaSqKm.toLocaleString()}km²
+                      {selectedRegion.dataYear}年经济数据 · 面积{selectedRegion.areaSqKm.toLocaleString()}km²
                     </p>
                   </div>
                   <button
@@ -339,8 +363,13 @@ export default function EconomicDataPage() {
           </div>
         </div>
 
-        <div className="mt-6 text-center text-[10px] text-gray-400">
-          经济数据图谱 — 数字看中国，省域经济全景数据可视化
+        <div className="mt-6 space-y-1">
+          <div className="text-center text-[10px] text-gray-400">
+            经济数据图谱 — 数字看中国，省域经济全景数据可视化
+          </div>
+          <div className="text-center text-[10px] text-gray-400">
+            数据来源：{currentDataset.dataSource} · 数据年份：{currentDataset.dataYear}年
+          </div>
         </div>
       </div>
     </div>

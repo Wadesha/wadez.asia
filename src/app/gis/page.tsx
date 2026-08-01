@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import SmartRecommend from "@/components/SmartRecommend";
 
 const GIS_TOOLS = [
   {
@@ -170,6 +171,7 @@ export default function GISExplorerPage() {
             当前版本使用模拟数据演示，后续将逐步接入高德 API、OSM 真实数据与政府开放数据
           </p>
         </div>
+        <SmartRecommend />
       </div>
     </div>
   );

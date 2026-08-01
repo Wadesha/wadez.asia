@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import OnboardingGuide from "@/components/OnboardingGuide";
 
 const GIS_TOOLS = [
   { href: "/pois", icon: "📍", title: "POI 兴趣点", desc: "城市兴趣点分类探索", color: "from-blue-500 to-cyan-400" },
@@ -16,9 +17,9 @@ const PLANNING_TOOLS = [
   { href: "/land-use", icon: "🏗️", title: "用地性质", desc: "土地利用分类", status: "已上线", color: "from-amber-500 to-orange-400" },
   { href: "/development-intensity", icon: "🏢", title: "开发强度", desc: "容积率密度分析", status: "已上线", color: "from-rose-500 to-pink-400" },
   { href: "/population-density", icon: "👥", title: "人口分布", desc: "人口热力格局", status: "已上线", color: "from-cyan-500 to-blue-400" },
-  { href: "#", icon: "🏥", title: "公服设施", desc: "教育医疗文体覆盖", status: "即将上线", color: "from-teal-500 to-emerald-400" },
-  { href: "#", icon: "🌆", title: "城市天际线", desc: "高度控制形态", status: "即将上线", color: "from-violet-500 to-purple-400" },
-  { href: "#", icon: "🚗", title: "交通承载", desc: "路网密度拥堵", status: "即将上线", color: "from-slate-500 to-gray-400" },
+  { href: "/public-service", icon: "🏥", title: "公服设施", desc: "教育医疗文体覆盖", status: "已上线", color: "from-teal-500 to-emerald-400" },
+  { href: "/skyline", icon: "🌆", title: "城市天际线", desc: "高度控制形态", status: "已上线", color: "from-violet-500 to-purple-400" },
+  { href: "/traffic-capacity", icon: "🚗", title: "交通承载", desc: "路网密度拥堵", status: "已上线", color: "from-slate-500 to-gray-400" },
 ];
 
 const FEATURES = [
@@ -46,44 +47,47 @@ const FEATURES = [
 
 const ROADMAP = [
   { version: "v1.0", title: "GIS工具箱", status: "已完成", desc: "7个GIS空间分析工具（模拟数据）" },
-  { version: "v1.2", title: "城市规划工具箱", status: "已完成", desc: "6个城市规划分析工具（3个上线）" },
-  { version: "v1.3", title: "多领域工具箱", status: "进行中", desc: "商业选址/气象环境/文旅资源" },
-  { version: "v1.5", title: "高德API联网", status: "规划中", desc: "POI搜索/路径规划/地理编码" },
-  { version: "v2.0", title: "OSM真实数据", status: "规划中", desc: "建筑/路网/绿道真实几何数据" },
+  { version: "v1.2", title: "城市规划工具箱", status: "已完成", desc: "6个城市规划分析工具（全部上线）" },
+  { version: "v1.3", title: "多领域工具箱", status: "已完成", desc: "商业选址/气象环境/文旅资源/自然资源/产业经济（全部上线）" },
+  { version: "v2.0", title: "功能补全迭代", status: "已完成", desc: "20个小版本：11个地图可视化+字段规范化+真实数据接入基础设施" },
+  { version: "v2.1", title: "真实数据+产品化", status: "已完成", desc: "20个小版本：6个子网站真实数据接入+交互增强+导出/报告/对比仪表盘+缓存/导航" },
+  { version: "v2.2", title: "跨站联动+智能分析", status: "已完成", desc: "20个小版本：全类别真实数据接入+跨站关联+异常检测/趋势预测+数据质量/帮助中心" },
+  { version: "v2.3", title: "三模式地图引擎", status: "已完成", desc: "20个小版本：SVG示意图保底+OSM免费底图+高德底图，三模式可切换，零配置也能看" },
+  { version: "v2.5", title: "OSM真实数据深化", status: "规划中", desc: "建筑/路网/绿道真实几何数据" },
   { version: "v3.0", title: "产品化", status: "规划中", desc: "全国城市+多源融合+分析报告" },
 ];
 
 const BUSINESS_TOOLS = [
   { href: "/business-siting", icon: "📍", title: "商铺选址评估", desc: "六维综合评分找好铺", status: "已上线", color: "from-rose-500 to-pink-400" },
-  { href: "#", icon: "🏪", title: "商圈竞争力", desc: "知己知彼百战不殆", status: "即将上线", color: "from-orange-500 to-red-400" },
-  { href: "#", icon: "👥", title: "客流预测", desc: "人潮在哪里机会在哪", status: "即将上线", color: "from-amber-500 to-orange-400" },
+  { href: "/business-cluster", icon: "🏪", title: "商圈竞争力", desc: "知己知彼百战不殆", status: "已上线", color: "from-orange-500 to-red-400" },
+  { href: "/passenger-flow", icon: "👥", title: "客流预测", desc: "人潮在哪里机会在哪", status: "已上线", color: "from-amber-500 to-orange-400" },
 ];
 
 const ENV_TOOLS = [
   { href: "/air-quality", icon: "🌬️", title: "空气质量监测", desc: "实时空气品质分布", status: "已上线", color: "from-cyan-500 to-blue-400" },
-  { href: "#", icon: "🌡️", title: "气象数据中心", desc: "温湿度降水全掌握", status: "即将上线", color: "from-sky-500 to-cyan-400" },
-  { href: "#", icon: "🌊", title: "水文监测站", desc: "河流水位流量监测", status: "即将上线", color: "from-blue-500 to-indigo-400" },
+  { href: "/heat-island", icon: "🌡️", title: "城市热岛效应", desc: "混凝土森林温度密码", status: "已上线", color: "from-sky-500 to-cyan-400" },
+  { href: "/noise-pollution", icon: "🌊", title: "噪声污染地图", desc: "看不见的城市健康杀手", status: "已上线", color: "from-blue-500 to-indigo-400" },
 ];
 
 const TOURISM_TOOLS = [
   { href: "/tourist-resource", icon: "🗺️", title: "文旅资源地图", desc: "景点美食文化一网打尽", status: "已上线", color: "from-amber-500 to-yellow-400" },
-  { href: "#", icon: "📊", title: "文旅数据分析", desc: "客流消费热度洞察", status: "即将上线", color: "from-orange-500 to-amber-400" },
-  { href: "#", icon: "🎫", title: "智慧导览系统", desc: "沉浸式游览体验", status: "即将上线", color: "from-yellow-500 to-lime-400" },
+  { href: "/intangible-heritage", icon: "📊", title: "非遗文化分布", desc: "传承在空间中的活态文化", status: "已上线", color: "from-orange-500 to-amber-400" },
+  { href: "/smart-tourism", icon: "🎫", title: "智慧旅游路线", desc: "最优路线玩透一座城", status: "已上线", color: "from-yellow-500 to-lime-400" },
 ];
 
 const NATURAL_RESOURCE_TOOLS = [
   { href: "/mineral-resource", icon: "⛏️", title: "矿产资源分布", desc: "矿山储量类型全景", status: "已上线", color: "from-stone-500 to-amber-600" },
   { href: "/land-use-resource", icon: "🗺️", title: "土地利用现状", desc: "用地斑块分类统计", status: "已上线", color: "from-lime-600 to-green-500" },
   { href: "/water-resource", icon: "💧", title: "水资源分布", desc: "河流湖泊水库水系", status: "已上线", color: "from-blue-500 to-cyan-400" },
-  { href: "#", icon: "🌳", title: "林业资源", desc: "森林覆盖率林地", status: "即将上线", color: "from-green-600 to-emerald-500" },
-  { href: "#", icon: "🌊", title: "海洋资源", desc: "海岸线海岛滩涂", status: "即将上线", color: "from-cyan-600 to-blue-500" },
+  { href: "/forest-resource", icon: "🌳", title: "林业资源", desc: "森林覆盖率林地", status: "已上线", color: "from-green-600 to-emerald-500" },
+  { href: "/marine-resource", icon: "🌊", title: "海洋资源", desc: "海岸线海岛滩涂", status: "已上线", color: "from-cyan-600 to-blue-500" },
 ];
 
 const INDUSTRY_ECON_TOOLS = [
   { href: "/industry-park", icon: "🏭", title: "产业园区分布", desc: "园区级别产业定位", status: "已上线", color: "from-indigo-500 to-purple-500" },
   { href: "/economic-data", icon: "📊", title: "经济数据图谱", desc: "省域GDP人口财政", status: "已上线", color: "from-blue-600 to-indigo-500" },
   { href: "/investment", icon: "💰", title: "招商投资地图", desc: "重点项目优惠政策", status: "已上线", color: "from-rose-500 to-orange-500" },
-  { href: "#", icon: "📈", title: "产业图谱", desc: "产业链上下游关系", status: "即将上线", color: "from-violet-500 to-purple-600" },
+  { href: "/industry-chain", icon: "📈", title: "产业图谱", desc: "产业链上下游关系", status: "已上线", color: "from-violet-500 to-purple-600" },
 ];
 
 export default function HomePage() {
@@ -125,7 +129,7 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto text-center relative">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/5 rounded-full border border-white/10 mb-6">
             <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-            <span className="text-xs text-gray-400">v1.3 多领域工具箱上线</span>
+            <span className="text-xs text-gray-400">v2.3 完成 三模式地图引擎 SVG示意图+OSM免费底图+高德底图</span>
           </div>
 
           <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
@@ -160,10 +164,10 @@ export default function HomePage() {
           {/* 数据统计 */}
           <div className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto">
             {[
-              { num: "25+", label: "分析工具" },
+              { num: "31", label: "子网站" },
+              { num: "11", label: "地图可视化" },
               { num: "5000+", label: "模拟POI" },
               { num: "460+", label: "模拟建筑" },
-              { num: "31", label: "规划子站" },
             ].map((stat) => (
               <div key={stat.label} className="text-center">
                 <div className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
@@ -172,6 +176,12 @@ export default function HomePage() {
                 <div className="text-xs text-gray-500 mt-1">{stat.label}</div>
               </div>
             ))}
+          </div>
+
+          {/* 数据源说明 */}
+          <div className="mt-10 inline-flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/20 rounded-full">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+            <span className="text-[11px] text-amber-300/90">当前数据状态：模拟数据演示 · v2.5起接入OSM真实数据 · v3.0接入政府开放数据</span>
           </div>
         </div>
       </section>
@@ -243,6 +253,56 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* 全国地图数据可视化 */}
+      <section id="china-map" className="py-20 px-6 border-t border-white/5 bg-gradient-to-b from-transparent via-amber-500/[0.02] to-transparent">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-end justify-between mb-10">
+            <div>
+              <div className="text-xs text-amber-400 mb-2">CHINA ADMIN MAP</div>
+              <h2 className="text-3xl font-bold mb-2">全国行政区划数据可视化</h2>
+              <p className="text-gray-400 text-sm">34省 / 150+地级市 / 200+县区，10+ 专题子站，零依赖 SVG 地图</p>
+            </div>
+            <Link
+              href="/china-map"
+              className="text-sm text-amber-400 hover:text-amber-300 transition hidden md:block"
+            >
+              进入全国地图 →
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+            {[
+              { href: "/china-map", label: "省级色块图", desc: "34省多维指标" },
+              { href: "/china-map/timeline", label: "时间序列动画", desc: "2010-2024逐年变化" },
+              { href: "/china-map/flow", label: "流向地图", desc: "人口/贸易/物流" },
+              { href: "/china-map/radar", label: "雷达对比", desc: "多省多维对比" },
+              { href: "/china-map/table", label: "数据表格", desc: "省/市/县三级" },
+              { href: "/china-map/population", label: "人口分布", desc: "密度/总量/气泡" },
+              { href: "/china-map/economy", label: "经济对比", desc: "GDP/人均/产业" },
+              { href: "/china-map/industry", label: "行业分布", desc: "33+产业园区" },
+              { href: "/china-map/transport", label: "交通网络", desc: "高铁/机场/港口" },
+              { href: "/china-map/urbanization", label: "城镇化", desc: "城镇化率对比" },
+            ].map((tool) => (
+              <Link
+                key={tool.href}
+                href={tool.href}
+                className="group bg-white/[0.03] border border-white/5 rounded-xl p-4 hover:bg-white/[0.06] hover:border-white/10 transition"
+              >
+                <h3 className="font-semibold text-sm mb-1 group-hover:text-amber-400 transition">{tool.label}</h3>
+                <p className="text-[10px] text-gray-500">{tool.desc}</p>
+              </Link>
+            ))}
+          </div>
+
+          <Link
+            href="/china-map"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 rounded-full text-sm transition"
+          >
+            进入全国地图 →
+          </Link>
+        </div>
+      </section>
+
       {/* 城市规划工具箱 */}
       <section id="planning" className="py-20 px-6 border-t border-white/5">
         <div className="max-w-6xl mx-auto">
@@ -250,10 +310,10 @@ export default function HomePage() {
             <div>
               <div className="text-xs text-amber-400 mb-2">URBAN PLANNING</div>
               <h2 className="text-3xl font-bold mb-2">城市规划工具箱</h2>
-              <p className="text-gray-400 text-sm">6 个规划专业分析工具，即将陆续上线</p>
+              <p className="text-gray-400 text-sm">6 个规划专业分析工具，全部上线</p>
             </div>
-            <span className="text-xs px-3 py-1 bg-amber-500/10 text-amber-400 rounded-full border border-amber-500/20">
-              v1.2 即将推出
+            <span className="text-xs px-3 py-1 bg-green-500/10 text-green-400 rounded-full border border-green-500/20">
+              6/6 已上线
             </span>
           </div>
 
@@ -308,8 +368,8 @@ export default function HomePage() {
               <h2 className="text-3xl font-bold mb-2">商业选址工具箱</h2>
               <p className="text-gray-400 text-sm">数据驱动的选址决策，让每一分投入都有回报</p>
             </div>
-            <span className="text-xs px-3 py-1 bg-rose-500/10 text-rose-400 rounded-full border border-rose-500/20">
-              v1.3 陆续推出
+            <span className="text-xs px-3 py-1 bg-green-500/10 text-green-400 rounded-full border border-green-500/20">
+              3/3 已上线
             </span>
           </div>
 
@@ -362,10 +422,10 @@ export default function HomePage() {
             <div>
               <div className="text-xs text-cyan-400 mb-2">ENVIRONMENT</div>
               <h2 className="text-3xl font-bold mb-2">气象环境工具箱</h2>
-              <p className="text-gray-400 text-sm">空气、气象、水文，环境数据全维度可视化</p>
+              <p className="text-gray-400 text-sm">空气、热岛、噪声，环境数据全维度可视化</p>
             </div>
-            <span className="text-xs px-3 py-1 bg-cyan-500/10 text-cyan-400 rounded-full border border-cyan-500/20">
-              v1.3 陆续推出
+            <span className="text-xs px-3 py-1 bg-green-500/10 text-green-400 rounded-full border border-green-500/20">
+              3/3 已上线
             </span>
           </div>
 
@@ -418,10 +478,10 @@ export default function HomePage() {
             <div>
               <div className="text-xs text-amber-400 mb-2">TOURISM</div>
               <h2 className="text-3xl font-bold mb-2">文旅资源工具箱</h2>
-              <p className="text-gray-400 text-sm">发现城市之美，景点、美食、文化、娱乐一网打尽</p>
+              <p className="text-gray-400 text-sm">发现城市之美，景点、非遗、智慧旅游一网打尽</p>
             </div>
-            <span className="text-xs px-3 py-1 bg-amber-500/10 text-amber-400 rounded-full border border-amber-500/20">
-              v1.3 陆续推出
+            <span className="text-xs px-3 py-1 bg-green-500/10 text-green-400 rounded-full border border-green-500/20">
+              3/3 已上线
             </span>
           </div>
 
@@ -476,8 +536,8 @@ export default function HomePage() {
               <h2 className="text-3xl font-bold mb-2">自然资源工具箱</h2>
               <p className="text-gray-400 text-sm">矿产、土地、水、林、海，自然资源全景数据</p>
             </div>
-            <span className="text-xs px-3 py-1 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20">
-              v1.4 新上线
+            <span className="text-xs px-3 py-1 bg-green-500/10 text-green-400 rounded-full border border-green-500/20">
+              5/5 已上线
             </span>
           </div>
 
@@ -530,10 +590,10 @@ export default function HomePage() {
             <div>
               <div className="text-xs text-indigo-400 mb-2">INDUSTRY & ECONOMY</div>
               <h2 className="text-3xl font-bold mb-2">产业经济工具箱</h2>
-              <p className="text-gray-400 text-sm">园区、经济、招商，产业发展数据洞察</p>
+              <p className="text-gray-400 text-sm">园区、经济、招商、产业链，产业发展数据洞察</p>
             </div>
-            <span className="text-xs px-3 py-1 bg-indigo-500/10 text-indigo-400 rounded-full border border-indigo-500/20">
-              v1.5 新上线
+            <span className="text-xs px-3 py-1 bg-green-500/10 text-green-400 rounded-full border border-green-500/20">
+              4/4 已上线
             </span>
           </div>
 
@@ -675,6 +735,8 @@ export default function HomePage() {
         </div>
       </section>
 
+      <OnboardingGuide />
+
       {/* Footer */}
       <footer className="py-8 px-6 border-t border-white/5">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
@@ -688,7 +750,7 @@ export default function HomePage() {
             <Link href="/gis" className="hover:text-gray-300 transition">工具箱</Link>
             <a href="#roadmap" className="hover:text-gray-300 transition">路线图</a>
             <Link href="/versions" className="hover:text-gray-300 transition">版本历史</Link>
-            <span className="text-gray-600">v1.2-beta</span>
+            <span className="text-gray-600">v2.0</span>
           </div>
         </div>
       </footer>

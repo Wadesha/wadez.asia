@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import {
   getRoutes,
   getCities,
@@ -11,6 +12,15 @@ import {
   type TourismRoute,
   type TransportMode,
 } from "@/lib/smart-tourism-data";
+
+const SmartTourismMap = dynamic(() => import("@/components/SmartTourismMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-[500px] w-full flex items-center justify-center bg-gray-50 rounded-xl border border-gray-200">
+      <div className="text-xs text-gray-400">地图加载中...</div>
+    </div>
+  ),
+});
 
 export default function SmartTourismPage() {
   const routes = getRoutes();
@@ -76,7 +86,10 @@ export default function SmartTourismPage() {
             </div>
           </div>
 
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-3">
+            <div className="bg-white border border-gray-200 rounded-xl p-3">
+              <SmartTourismMap route={selectedRoute} />
+            </div>
             {selectedRoute ? (
               <div className="space-y-3">
                 <div className="bg-white border border-gray-200 rounded-xl p-4">

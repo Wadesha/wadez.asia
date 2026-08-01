@@ -11,6 +11,8 @@ import {
   type ChainNode,
   type ChainLevel,
 } from "@/lib/industry-chain-data";
+import IndustryChainMap from "@/components/IndustryChainMap";
+import MapModeSwitcher from "@/components/MapModeSwitcher";
 
 export default function IndustryChainPage() {
   const chains = getChains();
@@ -31,7 +33,7 @@ export default function IndustryChainPage() {
             <div className="flex items-center gap-3">
               <Link href="/industry-park" className="text-xs text-gray-400 hover:text-gray-600 transition">← 产业园区</Link>
               <div>
-                <h1 className="text-lg font-bold text-gray-900">🔗 产业链图谱</h1>
+                <h1 className="text-lg font-bold text-gray-900">产业链图谱</h1>
                 <p className="text-[10px] text-gray-500 mt-0.5">产业链上下游关系 · 节点企业 · 配套服务 · 产业集群</p>
               </div>
             </div>
@@ -43,7 +45,12 @@ export default function IndustryChainPage() {
           </div>
           <div className="flex items-center gap-4 text-[11px] text-gray-500 pt-2 border-t border-gray-100 flex-wrap">
             <span>产业链：<b className="text-gray-800">{filteredChains.length}</b></span>
-            <span className="ml-auto text-gray-400">v1.0.0</span>
+            <span className="ml-auto flex items-center gap-2">
+              <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-[10px] rounded border border-gray-200">
+                模拟数据
+              </span>
+              <span className="text-gray-400">v1.0.0</span>
+            </span>
           </div>
         </div>
 
@@ -58,7 +65,7 @@ export default function IndustryChainPage() {
                       <span className="text-[11px] font-medium text-gray-800">{chain.name}</span>
                     </div>
                     <div className="flex items-center gap-3 text-[10px] text-gray-500">
-                      <span>产值{chain.总产值}亿</span>
+                      <span>产值{chain.totalOutput}亿</span>
                       <span>企业{chain.enterpriseCount}家</span>
                       <span className="text-green-600">评分{chain.clusterScore}</span>
                     </div>
@@ -77,15 +84,18 @@ export default function IndustryChainPage() {
                       <h2 className="text-base font-bold text-gray-900">{selectedChain.name}</h2>
                       <p className="text-[10px] text-gray-500 mt-0.5">{selectedChain.city}</p>
                     </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">{selectedChain.clusterScore}</div>
-                      <div className="text-[9px] text-gray-500">集群评分</div>
+                    <div className="flex items-center gap-3">
+                      <MapModeSwitcher />
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">{selectedChain.clusterScore}</div>
+                        <div className="text-[9px] text-gray-500">集群评分</div>
+                      </div>
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     <div className="bg-gray-50 rounded-lg p-2.5">
                       <div className="text-[9px] text-gray-400">总产值</div>
-                      <div className="text-sm font-bold text-gray-800">{selectedChain.总产值}<span className="text-[9px] ml-1">亿元</span></div>
+                      <div className="text-sm font-bold text-gray-800">{selectedChain.totalOutput}<span className="text-[9px] ml-1">亿元</span></div>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-2.5">
                       <div className="text-[9px] text-gray-400">企业数量</div>
@@ -99,7 +109,14 @@ export default function IndustryChainPage() {
                 </div>
 
                 <div className="bg-white border border-gray-200 rounded-xl p-4">
-                  <h3 className="text-xs font-semibold text-gray-800 mb-3">产业链图谱</h3>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-xs font-semibold text-gray-800">产业链图谱</h3>
+                  </div>
+                  <IndustryChainMap chain={selectedChain} height="h-[500px]" />
+                </div>
+
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
+                  <h3 className="text-xs font-semibold text-gray-800 mb-3">节点结构</h3>
                   <div className="flex items-center justify-between gap-4">
                     {selectedChain.nodes.map((node, i) => (
                       <div key={node.id} className="flex-1">
@@ -148,7 +165,10 @@ export default function IndustryChainPage() {
           </div>
         </div>
 
-        <div className="mt-6 text-center text-[10px] text-gray-400">产业链图谱 — 梳理产业脉络，优化资源配置</div>
+        <div className="mt-6 space-y-1">
+          <div className="text-center text-[10px] text-gray-400">产业链图谱 — 梳理产业脉络，优化资源配置</div>
+          <div className="text-center text-[10px] text-gray-400">数据来源：模拟生成数据，仅供演示参考</div>
+        </div>
       </div>
     </div>
   );

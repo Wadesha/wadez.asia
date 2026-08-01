@@ -25,6 +25,7 @@ export interface AQICity {
   primaryPollutant: string;
   stations: AQIStation[];
   updateTime: string;
+  dataSource: "simulated" | "real";
 }
 
 export const AQI_LEVELS: Record<AQILevel, { label: string; color: string; min: number; max: number }> = {
@@ -130,6 +131,7 @@ function generateCityData(id: string, name: string, center: [number, number], ba
     primaryPollutant: pollutants[0]?.name || "PM2.5",
     stations,
     updateTime: "2026-07-28 14:00",
+    dataSource: "simulated",
   };
 }
 

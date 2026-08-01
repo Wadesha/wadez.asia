@@ -12,6 +12,8 @@ import {
   type WaterResource,
   type WaterResourceType,
 } from "@/lib/water-resource-data";
+import { calculateDataQuality } from "@/lib/data-quality";
+import QualityBadge from "@/components/QualityBadge";
 
 const WaterResourceMap = dynamic(() => import("@/components/WaterResourceMap"), {
   ssr: false,
@@ -32,6 +34,14 @@ export default function WaterResourcePage() {
     () => basins.find((b) => b.id === basinId),
     [basinId, basins]
   );
+
+  const quality = useMemo(() => {
+    if (!currentBasin) return null;
+    return calculateDataQuality({
+      dataSource: currentBasin.dataSource,
+      recordCount: currentBasin.resources.length,
+    });
+  }, [currentBasin]);
 
   const filteredResources = useMemo(() => {
     if (!currentBasin) return [];
@@ -79,7 +89,12 @@ export default function WaterResourcePage() {
                 </p>
               </div>
             </div>
-            <select
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-100 rounded-md">
+                <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+                <span className="text-[10px] text-gray-500">模拟数据</span>
+              </div>
+              <select
               value={basinId}
               onChange={(e) => {
                 setBasinId(e.target.value);
@@ -93,6 +108,7 @@ export default function WaterResourcePage() {
                 </option>
               ))}
             </select>
+            </div>
           </div>
 
           <div className="flex items-center gap-4 text-[11px] text-gray-500 pt-2 border-t border-gray-100 flex-wrap">
@@ -111,7 +127,13 @@ export default function WaterResourcePage() {
             <span>
               总库容：<b className="text-cyan-600">{currentBasin.totalReservoirCapacity} 亿m³</b>
             </span>
-            <span className="ml-auto text-gray-400">v1.0.0</span>
+            <span className="ml-auto flex items-center gap-2">
+              {quality && <QualityBadge quality={quality} />}
+            </span>
+          </div>
+
+          <div className="mt-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-[11px] text-gray-500">
+            水系POI数据待接入：真实水文监测点、取水口、排污口等边界数据尚未接入，当前为模拟数据
           </div>
         </div>
 

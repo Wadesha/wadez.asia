@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import type { POI, POICategory, HeatGridCell } from "@/lib/poi-heat-data";
-import { CATEGORY_COLORS } from "@/lib/poi-heat-data";
+import { CATEGORY_COLORS, CATEGORY_LABELS } from "@/lib/poi-heat-data";
+import { loadAMap, isAMapConfigured } from "@/lib/load-amap";
+import SchematicMap from "@/components/SchematicMap";
+import OsmMap from "@/components/OsmMap";
+import { useMapMode } from "@/context/MapModeContext";
 
 export type HeatMapMode = "heatmap" | "grid" | "points";
 
@@ -15,31 +19,6 @@ interface POIHeatMapProps {
   opacity: number;
   gridCells?: HeatGridCell[];
   onPOIClick?: (poi: POI) => void;
-}
-
-function loadAMapScript(): Promise<any> {
-  return new Promise((resolve, reject) => {
-    if ((window as any).AMap) {
-      resolve((window as any).AMap);
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = `https://webapi.amap.com/maps?v=2.0&key=${process.env.NEXT_PUBLIC_AMAP_KEY}&securityCode=${process.env.NEXT_PUBLIC_AMAP_SECURITY_CODE}&plugin=AMap.HeatMap`;
-    script.async = true;
-    script.onload = () => {
-      const AMap = (window as any).AMap;
-      if (AMap) {
-        resolve(AMap);
-      } else {
-        reject(new Error("AMap not loaded"));
-      }
-    };
-    script.onerror = () => {
-      reject(new Error("Failed to load AMap script"));
-    };
-    document.head.appendChild(script);
-  });
 }
 
 function getHeatColor(value: number, max: number): string {
@@ -61,6 +40,7 @@ export default function POIHeatMap({
   gridCells = [],
   onPOIClick,
 }: POIHeatMapProps) {
+  const { mode: mapMode } = useMapMode();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
@@ -69,10 +49,71 @@ export default function POIHeatMap({
   const gridPolygonsRef = useRef<any[]>([]);
   const markersRef = useRef<any[]>([]);
 
+  const categoryOrder: POICategory[] = [
+    "food", "shopping", "entertainment", "education",
+    "healthcare", "transport", "public-service", "residential",
+  ];
+
+  const schematicPoints = useMemo(() => {
+    return pois.map((p, i) => {
+      const catIdx = categoryOrder.indexOf(p.category);
+      return {
+        id: p.id || i,
+        lng: p.lng,
+        lat: p.lat,
+        r: 2 + Math.min(5, catIdx % 6),
+        category: ((catIdx % 5) as 0 | 1 | 2 | 3 | 4),
+        label: p.name,
+        onClick: onPOIClick ? () => onPOIClick(p) : undefined,
+      };
+    });
+  }, [pois, onPOIClick]);
+
+  const schematicLegend = useMemo(() => {
+    const usedCategories = new Set(pois.map((p) => p.category));
+    return categoryOrder
+      .filter((c) => usedCategories.has(c))
+      .slice(0, 5)
+      .map((c, i) => ({
+        label: CATEGORY_LABELS[c],
+        kind: "point" as const,
+        category: (i as 0 | 1 | 2 | 3 | 4),
+      }));
+  }, [pois]);
+
+  if (mapMode === "schematic") {
+    return (
+      <SchematicMap
+        height={500}
+        points={schematicPoints}
+        legend={schematicLegend}
+        title="POI 分布示意图"
+        showCompass
+      />
+    );
+  }
+  if (mapMode === "osm") {
+    return (
+      <OsmMap
+        height={500}
+        center={center}
+        zoom={zoom}
+        points={schematicPoints}
+        legend={schematicLegend}
+        title="POI 分布示意图"
+      />
+    );
+  }
+
   useEffect(() => {
     let mounted = true;
 
-    loadAMapScript()
+    if (!isAMapConfigured()) {
+      setMapError("高德地图 API Key 未配置，地图无法显示");
+      return;
+    }
+
+    loadAMap(["AMap.HeatMap"])
       .then((AMap) => {
         if (!mounted || !mapContainerRef.current) return;
 

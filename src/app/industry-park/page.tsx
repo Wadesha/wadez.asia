@@ -79,7 +79,7 @@ export default function IndustryParkPage() {
               </Link>
               <div>
                 <h1 className="text-lg font-bold text-gray-900">
-                  🏭 产业园区分布
+                  产业园区分布
                 </h1>
                 <p className="text-[10px] text-gray-500 mt-0.5">
                   经济发展的引擎 — 产业集聚与创新高地
@@ -120,7 +120,12 @@ export default function IndustryParkPage() {
                 {(currentCity.totalOutput / 100000000).toFixed(1)} 亿
               </b>
             </span>
-            <span className="ml-auto text-gray-400">v1.0.0</span>
+            <span className="ml-auto flex items-center gap-2">
+              <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-[10px] rounded border border-gray-200">
+                模拟数据
+              </span>
+              <span className="text-gray-400">v1.0.0</span>
+            </span>
           </div>
         </div>
 
@@ -341,8 +346,13 @@ export default function IndustryParkPage() {
           </div>
         </div>
 
-        <div className="mt-6 text-center text-[10px] text-gray-400">
-          产业园区分布 — 经济发展的引擎，产业集聚与创新高地
+        <div className="mt-6 space-y-1">
+          <div className="text-center text-[10px] text-gray-400">
+            产业园区分布 — 经济发展的引擎，产业集聚与创新高地
+          </div>
+          <div className="text-center text-[10px] text-gray-400">
+            数据来源：模拟生成数据，仅供演示参考
+          </div>
         </div>
       </div>
     </div>

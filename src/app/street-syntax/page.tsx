@@ -13,6 +13,12 @@ import {
   type StreetEdge,
   type StreetNode,
 } from "@/lib/street-network-data";
+import {
+  useRealAround,
+  ROAD_TYPE_CODES,
+  type RealAroundPOI,
+} from "@/lib/use-real-around";
+import { DataSourceToggle, type DataSource } from "@/components/DataSourceToggle";
 
 const StreetNetworkMap = dynamic(() => import("@/components/StreetNetworkMap"), {
   ssr: false,
@@ -41,6 +47,9 @@ export default function StreetSyntaxPage() {
   const [compareAreaId, setCompareAreaId] = useState<string>(
     areas[1]?.id || ""
   );
+  const [dataSource, setDataSource] = useState<DataSource>("simulated");
+  const realRoads = useRealAround();
+  const [realLocation, setRealLocation] = useState("116.397428,39.90923");
 
   const currentArea = useMemo(
     () => areas.find((a) => a.id === areaId),
@@ -140,6 +149,17 @@ export default function StreetSyntaxPage() {
           </div>
         </div>
 
+        <DataSourceToggle
+          source={dataSource}
+          onChange={setDataSource}
+          realDataCount={realRoads.pois.length}
+          simulatedCount={stats.edgeCount}
+          loading={realRoads.loading}
+          error={realRoads.error}
+          apiName="高德API"
+        />
+
+        {dataSource === "simulated" && (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
           <div className="lg:col-span-1 space-y-3">
             <div className="bg-white border border-gray-200 rounded-xl p-3">
@@ -511,6 +531,113 @@ export default function StreetSyntaxPage() {
             )}
           </div>
         </div>
+        )}
+
+        {dataSource === "real" && (
+          <div className="space-y-3">
+            <div className="bg-white border border-gray-200 rounded-xl p-3">
+              <h3 className="text-xs font-semibold text-gray-800 mb-2.5">
+                周边路网搜索
+              </h3>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={realLocation}
+                  onChange={(e) => setRealLocation(e.target.value)}
+                  placeholder="经度,纬度（如 116.397428,39.90923）"
+                  className="flex-1 px-2 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md text-gray-700 outline-none focus:ring-1 focus:ring-gray-300"
+                />
+                <button
+                  onClick={() =>
+                    realRoads.search({
+                      location: realLocation,
+                      types: ROAD_TYPE_CODES,
+                      radius: 5000,
+                    })
+                  }
+                  disabled={realRoads.loading || !realLocation.trim()}
+                  className="px-3 py-1.5 text-xs rounded-md bg-gray-900 text-white hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {realRoads.loading ? "搜索中..." : "搜索周边路网"}
+                </button>
+              </div>
+              <p className="text-[10px] text-gray-400 mt-1.5">
+                搜索半径 5000m · 类型码 {ROAD_TYPE_CODES}（交通设施服务）
+              </p>
+            </div>
+
+            <div className="bg-white border border-gray-200 rounded-xl p-3">
+              <div className="flex items-center justify-between mb-2.5">
+                <h3 className="text-xs font-semibold text-gray-800">
+                  真实路网 POI
+                </h3>
+                <div className="flex items-center gap-1.5">
+                  {realRoads.loading && (
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-200">
+                      查询中...
+                    </span>
+                  )}
+                  {!realRoads.loading && realRoads.error && (
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-200">
+                      ⚠ {realRoads.error}
+                    </span>
+                  )}
+                  {!realRoads.loading &&
+                    !realRoads.error &&
+                    realRoads.isRealData && (
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-green-50 text-green-600 border border-green-200">
+                        ✓ 真实数据
+                      </span>
+                    )}
+                  {!realRoads.loading &&
+                    !realRoads.isRealData &&
+                    !realRoads.error && (
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-gray-100 text-gray-500 border border-gray-200">
+                        模拟回退
+                      </span>
+                    )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 text-[11px] text-gray-500 mb-2.5 pb-2 border-b border-gray-100">
+                <span>
+                  节点数 <b className="text-gray-800">{realRoads.pois.length}</b>
+                </span>
+                <span className="text-gray-200">|</span>
+                <span className="text-gray-400">
+                  注：真实路段边需 OSM 数据补充
+                </span>
+              </div>
+
+              {realRoads.pois.length === 0 ? (
+                <p className="text-[10px] text-gray-400 text-center py-4">
+                  请输入坐标并搜索周边路网
+                </p>
+              ) : (
+                <div className="space-y-1.5 max-h-[500px] overflow-y-auto">
+                  {realRoads.pois.map((poi: RealAroundPOI) => (
+                    <div
+                      key={poi.id}
+                      className="flex items-center justify-between px-2 py-1.5 bg-gray-50 rounded-md"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[11px] text-gray-700 font-medium truncate">
+                          {poi.name}
+                        </div>
+                        <div className="text-[9px] text-gray-400 truncate">
+                          {poi.type}
+                        </div>
+                      </div>
+                      <div className="text-[10px] text-gray-500 ml-2 whitespace-nowrap">
+                        {poi.distance}m
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="mt-6 text-center text-[10px] text-gray-400">
           街道网络句法 — 用图论解码城市的隐性空间逻辑

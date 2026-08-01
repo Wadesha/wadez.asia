@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import {
   getMarineCities,
   MARINE_TYPE_LABELS,
@@ -9,6 +10,15 @@ import {
   type MarineResource,
   type MarineResourceType,
 } from "@/lib/marine-resource-data";
+
+const MarineResourceMap = dynamic(() => import("@/components/MarineResourceMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-[400px] bg-gray-100 rounded-xl flex items-center justify-center">
+      <span className="text-gray-400 text-xs">地图加载中...</span>
+    </div>
+  ),
+});
 
 export default function MarineResourcePage() {
   const cities = getMarineCities();
@@ -40,6 +50,10 @@ export default function MarineResourcePage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-100 rounded-md">
+                <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+                <span className="text-[10px] text-gray-500">模拟数据</span>
+              </div>
               <select value={cityId} onChange={(e) => { setCityId(e.target.value); setSelectedResource(null); }} className="px-2 py-1.5 text-xs bg-gray-100 border border-gray-200 rounded-md text-gray-700">
                 {cities.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
               </select>
@@ -57,7 +71,6 @@ export default function MarineResourcePage() {
             <span>滩涂：<b className="text-gray-800">{currentCity.wetlandArea}公顷</b></span>
             <span className="text-gray-200">|</span>
             <span>渔产量：<b className="text-green-600">{currentCity.fisheryOutput}万吨</b></span>
-            <span className="ml-auto text-gray-400">v1.0.0</span>
           </div>
         </div>
 
@@ -84,7 +97,17 @@ export default function MarineResourcePage() {
             </div>
           </div>
 
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-3">
+            <div className="bg-white border border-gray-200 rounded-xl p-2">
+              <MarineResourceMap
+                resources={filteredResources}
+                center={currentCity.center}
+                zoom={9}
+                height="h-[400px]"
+                onResourceClick={setSelectedResource}
+                selectedId={selectedResource?.id}
+              />
+            </div>
             {selectedResource ? (
               <div className="space-y-3">
                 <div className="bg-white border border-gray-200 rounded-xl p-4">

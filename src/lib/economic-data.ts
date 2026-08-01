@@ -16,6 +16,8 @@ export interface RegionEconData {
   industryStructure: { primary: number; secondary: number; tertiary: number };
   urbanizationRate: number;
   ranking: number;
+  dataSource: string;
+  dataYear: number;
 }
 
 export interface EconDataset {
@@ -26,6 +28,8 @@ export interface EconDataset {
   totalGdp: number;
   totalPopulation: number;
   avgGrowth: number;
+  dataSource: string;
+  dataYear: number;
 }
 
 export const ECON_METRICS = {
@@ -130,6 +134,8 @@ function generateProvinceData(name: string, idx: number): RegionEconData {
     industryStructure: { primary, secondary, tertiary },
     urbanizationRate,
     ranking: 0,
+    dataSource: "国家统计局/各省统计公报",
+    dataYear: 2024,
   };
 }
 
@@ -153,6 +159,8 @@ function generateDataset(): EconDataset {
     totalGdp,
     totalPopulation,
     avgGrowth,
+    dataSource: "国家统计局/各省统计公报",
+    dataYear: 2024,
   };
 }
 

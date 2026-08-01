@@ -1,9 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import type { StreetEdge, StreetNode } from "@/lib/street-network-data";
 import type { NetworkMetric } from "@/lib/street-network-data";
 import { getMetricColor } from "@/lib/street-network-data";
+import { loadAMap, isAMapConfigured } from "@/lib/load-amap";
+import SchematicMap, {
+  type SchematicPolyline,
+  type SchematicPoint,
+} from "@/components/SchematicMap";
+import OsmMap from "@/components/OsmMap";
+import { useMapMode } from "@/context/MapModeContext";
 
 interface StreetNetworkMapProps {
   edges: StreetEdge[];
@@ -17,31 +24,6 @@ interface StreetNetworkMapProps {
   showNodes?: boolean;
 }
 
-function loadAMapScript(): Promise<any> {
-  return new Promise((resolve, reject) => {
-    if ((window as any).AMap) {
-      resolve((window as any).AMap);
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = `https://webapi.amap.com/maps?v=2.0&key=${process.env.NEXT_PUBLIC_AMAP_KEY}&securityCode=${process.env.NEXT_PUBLIC_AMAP_SECURITY_CODE}`;
-    script.async = true;
-    script.onload = () => {
-      const AMap = (window as any).AMap;
-      if (AMap) {
-        resolve(AMap);
-      } else {
-        reject(new Error("AMap not loaded"));
-      }
-    };
-    script.onerror = () => {
-      reject(new Error("Failed to load AMap script"));
-    };
-    document.head.appendChild(script);
-  });
-}
-
 export default function StreetNetworkMap({
   edges,
   nodes,
@@ -53,6 +35,7 @@ export default function StreetNetworkMap({
   onNodeClick,
   showNodes = false,
 }: StreetNetworkMapProps) {
+  const { mode: mapMode } = useMapMode();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
@@ -60,10 +43,69 @@ export default function StreetNetworkMap({
   const polylineRef = useRef<any[]>([]);
   const markersRef = useRef<any[]>([]);
 
+  const schematicPolylines = useMemo<SchematicPolyline[]>(() => {
+    return edges.map((e, i) => ({
+      id: e.id || i,
+      path: e.geometry.map(([lng, lat]) => ({ lng, lat })),
+      shade: 600,
+      width: 1.2,
+      style: 1,
+      onClick: onEdgeClick ? () => onEdgeClick(e) : undefined,
+    }));
+  }, [edges, onEdgeClick]);
+
+  const schematicPoints = useMemo<SchematicPoint[]>(() => {
+    if (!showNodes) return [];
+    return nodes.map((n, i) => ({
+      id: n.id || i,
+      lng: n.lng,
+      lat: n.lat,
+      category: 1,
+      r: 3,
+      onClick: onNodeClick ? () => onNodeClick(n) : undefined,
+    }));
+  }, [nodes, showNodes, onNodeClick]);
+
+  const schematicLegend = [
+    { label: "道路", kind: "line" as const, shade: 600 },
+    { label: "路口", kind: "point" as const, category: 1 },
+  ];
+
+  if (mapMode === "schematic") {
+    return (
+      <SchematicMap
+        height={500}
+        polylines={schematicPolylines}
+        points={schematicPoints}
+        legend={schematicLegend}
+        title="街道网络示意图"
+        showCompass
+      />
+    );
+  }
+  if (mapMode === "osm") {
+    return (
+      <OsmMap
+        height={500}
+        center={center}
+        zoom={zoom}
+        polylines={schematicPolylines}
+        points={schematicPoints}
+        legend={schematicLegend}
+        title="街道网络示意图"
+      />
+    );
+  }
+
   useEffect(() => {
     let mounted = true;
 
-    loadAMapScript()
+    if (!isAMapConfigured()) {
+      setMapError("高德地图 API Key 未配置，地图无法显示");
+      return;
+    }
+
+    loadAMap()
       .then((AMap) => {
         if (!mounted || !mapContainerRef.current) return;
 

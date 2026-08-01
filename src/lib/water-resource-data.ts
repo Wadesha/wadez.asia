@@ -27,6 +27,7 @@ export interface WaterBasin {
   totalRiverLength: number;
   totalReservoirCapacity: number;
   dominantRiver: string;
+  dataSource: "simulated" | "real";
 }
 
 export const WATER_TYPE_LABELS: Record<WaterResourceType, string> = {
@@ -216,6 +217,7 @@ function generateBasin(id: string, name: string, center: [number, number], total
     totalRiverLength: Math.round(totalRiverLength),
     totalReservoirCapacity: Math.round(totalReservoirCapacity / 10000000),
     dominantRiver: resources.find((r) => r.type === "river")?.name || "长江",
+    dataSource: "simulated",
   };
 }
 

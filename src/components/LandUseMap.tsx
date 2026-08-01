@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { LAND_USE_COLORS, type LandUseParcel, type LandUseType } from "@/lib/land-use-data";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { loadAMap, isAMapConfigured } from "@/lib/load-amap";
+import { LAND_USE_COLORS, LAND_USE_LABELS, type LandUseParcel, type LandUseType } from "@/lib/land-use-data";
+import SchematicMap, { type SchematicPolygon } from "@/components/SchematicMap";
+import OsmMap from "@/components/OsmMap";
+import { useMapMode } from "@/context/MapModeContext";
 
 interface LandUseMapProps {
   parcels: LandUseParcel[];
@@ -13,6 +17,17 @@ interface LandUseMapProps {
   onParcelClick?: (parcel: LandUseParcel) => void;
 }
 
+const TYPE_SHADE: Record<LandUseType, 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900> = {
+  residential: 300,
+  commercial: 500,
+  industrial: 700,
+  "green-space": 200,
+  "public-facility": 400,
+  "road-square": 600,
+  water: 200,
+  "mixed-use": 400,
+};
+
 export default function LandUseMap({
   parcels,
   center,
@@ -22,27 +37,91 @@ export default function LandUseMap({
   showLabels = false,
   onParcelClick,
 }: LandUseMapProps) {
+  const { mode } = useMapMode();
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const parcelPolygonsRef = useRef<any[]>([]);
+  const [mapError, setMapError] = useState<string | null>(null);
+
+  const schematicPolygons = useMemo<SchematicPolygon[]>(() => {
+    return parcels.map((p) => ({
+      id: p.id,
+      label: `${LAND_USE_LABELS[p.type]} · ${p.areaHa.toFixed(1)}ha`,
+      path: p.geometry.map(([lng, lat]) => ({ lng, lat })),
+      shade: TYPE_SHADE[p.type],
+      opacity: 0.55,
+      strokeShade: 500,
+      onClick: onParcelClick ? () => onParcelClick(p) : undefined,
+    }));
+  }, [parcels, onParcelClick]);
+
+  const legend = useMemo(() => {
+    const types = new Set(parcels.map((p) => p.type));
+    return Array.from(types).map((t) => ({
+      label: LAND_USE_LABELS[t],
+      kind: "area" as const,
+      shade: TYPE_SHADE[t],
+    }));
+  }, [parcels]);
+
+  if (mode === "schematic") {
+    return (
+      <div className="relative rounded-xl overflow-hidden border border-gray-200">
+        <SchematicMap
+          width={800}
+          height={500}
+          polygons={schematicPolygons}
+          legend={legend}
+          title="用地性质示意图"
+          showCompass
+        />
+      </div>
+    );
+  }
+
+  if (mode === "osm") {
+    return (
+      <div className="relative rounded-xl overflow-hidden border border-gray-200">
+        <OsmMap
+          width={800}
+          height={500}
+          polygons={schematicPolygons}
+          legend={legend}
+          title="用地性质示意图"
+        />
+      </div>
+    );
+  }
 
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
+    if (!isAMapConfigured()) {
+      setMapError("高德地图 API Key 未配置");
+      return;
+    }
 
-    const AMap = (window as any).AMap;
-    if (!AMap) return;
-
-    const map = new AMap.Map(mapRef.current, {
-      center,
-      zoom,
-      mapStyle: "amap://styles/light",
-      features: ["bg", "road"],
-    });
-    mapInstanceRef.current = map;
+    let cancelled = false;
+    loadAMap()
+      .then((AMap) => {
+        if (cancelled || !mapRef.current || mapInstanceRef.current) return;
+        const map = new AMap.Map(mapRef.current, {
+          center,
+          zoom,
+          mapStyle: "amap://styles/light",
+          features: ["bg", "road"],
+        });
+        mapInstanceRef.current = map;
+      })
+      .catch((err) => {
+        if (!cancelled) setMapError(err.message);
+      });
 
     return () => {
-      map.destroy();
-      mapInstanceRef.current = null;
+      cancelled = true;
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.destroy();
+        mapInstanceRef.current = null;
+      }
     };
   }, [center, zoom]);
 
@@ -149,6 +228,14 @@ export default function LandUseMap({
     );
     map.setBounds(bounds, [40, 40, 40, 40], false);
   }, [parcels, colorMode, showLabels, onParcelClick]);
+
+  if (mapError) {
+    return (
+      <div className={`w-full ${height} bg-gray-100 rounded-lg flex items-center justify-center`}>
+        <span className="text-gray-400 text-xs">{mapError}</span>
+      </div>
+    );
+  }
 
   return (
     <div className="relative rounded-xl overflow-hidden border border-gray-200">

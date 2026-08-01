@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
+import { loadAMap, isAMapConfigured } from "@/lib/load-amap";
 import { ECON_METRICS, type RegionEconData, type EconMetricKey } from "@/lib/economic-data";
+import SchematicMap from "./SchematicMap";
+import OsmMap from "@/components/OsmMap";
+import { useMapMode } from "@/context/MapModeContext";
 
 interface EconDataMapProps {
   regions: RegionEconData[];
@@ -23,6 +27,23 @@ function getValueColor(value: number, max: number, min: number): string {
   return colors[idx];
 }
 
+function buildOctagon(
+  lng: number,
+  lat: number,
+  size: number
+): Array<{ lng: number; lat: number }> {
+  const r = size;
+  const path: Array<{ lng: number; lat: number }> = [];
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2;
+    path.push({
+      lng: lng + Math.cos(angle) * r,
+      lat: lat + Math.sin(angle) * r,
+    });
+  }
+  return path;
+}
+
 export default function EconDataMap({
   regions,
   center,
@@ -32,25 +53,104 @@ export default function EconDataMap({
   onRegionClick,
   selectedId,
 }: EconDataMapProps) {
+  const { mode } = useMapMode();
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
+  const [mapError, setMapError] = useState<string | null>(null);
+
+  const altContent = useMemo(() => {
+    if (mode !== "schematic" && mode !== "osm") return null;
+
+    const values = regions.map((r) => r[metric] as number);
+    const max = values.length > 0 ? Math.max(...values) : 1;
+    const min = values.length > 0 ? Math.min(...values) : 0;
+
+    const SHADES: Array<300 | 400 | 500 | 600 | 700 | 800 | 900> = [300, 400, 500, 600, 700, 800, 900];
+
+    const polygons = regions.map((region) => {
+      const value = region[metric] as number;
+      const ratio = max === min ? 0.5 : (value - min) / (max - min);
+      const shadeIdx = Math.min(SHADES.length - 1, Math.floor(ratio * SHADES.length));
+      const areaScale = region.level === "province" ? 1.8 : 0.8;
+      const size = 0.5 + ratio * 1.2;
+      return {
+        id: region.id,
+        path: buildOctagon(region.lng, region.lat, size * areaScale),
+        label: `${region.name} (${value}${ECON_METRICS[metric].unit})`,
+        shade: SHADES[shadeIdx],
+        opacity: 0.6,
+        onClick: () => onRegionClick?.(region),
+      };
+    });
+
+    const legend = [
+      { label: "极高(前25%)", kind: "area" as const, shade: 900 },
+      { label: "高(25-50%)", kind: "area" as const, shade: 700 },
+      { label: "中(50-75%)", kind: "area" as const, shade: 500 },
+      { label: "低(后25%)", kind: "area" as const, shade: 300 },
+    ];
+
+    const title = `${ECON_METRICS[metric].label}分布示意图`;
+
+    if (mode === "osm") {
+      return (
+        <div className={`w-full ${height}`}>
+          <OsmMap
+            height={500}
+            polygons={polygons}
+            legend={legend}
+            title={title}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div className={`w-full ${height}`}>
+        <SchematicMap
+          width={800}
+          height={500}
+          polygons={polygons}
+          legend={legend}
+          title={title}
+          showCompass
+          className="w-full"
+        />
+      </div>
+    );
+  }, [mode, regions, metric, onRegionClick, height]);
+
+  if (altContent) return altContent;
 
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
-    const AMap = (window as any).AMap;
-    if (!AMap) return;
+    if (!isAMapConfigured()) {
+      setMapError("高德地图 API Key 未配置");
+      return;
+    }
 
-    const map = new AMap.Map(mapRef.current, {
-      center,
-      zoom,
-      mapStyle: "amap://styles/light",
-    });
-    mapInstanceRef.current = map;
+    let cancelled = false;
+    loadAMap()
+      .then((AMap) => {
+        if (cancelled || !mapRef.current || mapInstanceRef.current) return;
+        const map = new AMap.Map(mapRef.current, {
+          center,
+          zoom,
+          mapStyle: "amap://styles/light",
+        });
+        mapInstanceRef.current = map;
+      })
+      .catch((err) => {
+        if (!cancelled) setMapError(err.message);
+      });
 
     return () => {
-      map.destroy();
-      mapInstanceRef.current = null;
+      cancelled = true;
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.destroy();
+        mapInstanceRef.current = null;
+      }
     };
   }, [center, zoom]);
 
@@ -112,6 +212,14 @@ export default function EconDataMap({
     );
     map.setBounds(bounds, [80, 40, 40, 40], false);
   }, [regions, metric, selectedId, onRegionClick]);
+
+  if (mapError) {
+    return (
+      <div className={`w-full ${height} bg-gray-100 rounded-lg flex items-center justify-center`}>
+        <span className="text-gray-400 text-xs">{mapError}</span>
+      </div>
+    );
+  }
 
   return (
     <div className="relative rounded-xl overflow-hidden border border-gray-200">

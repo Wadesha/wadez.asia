@@ -85,7 +85,12 @@ export default function LandUseResourcePage() {
                 </p>
               </div>
             </div>
-            <select
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-100 rounded-md">
+                <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+                <span className="text-[10px] text-gray-500">模拟数据</span>
+              </div>
+              <select
               value={regionId}
               onChange={(e) => {
                 setRegionId(e.target.value);
@@ -99,6 +104,7 @@ export default function LandUseResourcePage() {
                 </option>
               ))}
             </select>
+            </div>
           </div>
 
           <div className="flex items-center gap-4 text-[11px] text-gray-500 pt-2 border-t border-gray-100 flex-wrap">
@@ -113,7 +119,6 @@ export default function LandUseResourcePage() {
             <span>
               斑块数：<b className="text-gray-800">{currentRegion.patches.length}</b>
             </span>
-            <span className="ml-auto text-gray-400">v1.0.0</span>
           </div>
         </div>
 

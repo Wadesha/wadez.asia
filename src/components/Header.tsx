@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import MapModeSwitcher from "@/components/MapModeSwitcher";
 
 interface HeaderProps {
   user: { email: string } | null;
@@ -189,6 +190,14 @@ export default function Header({ user }: HeaderProps) {
             )}
           </div>
 
+          {/* 全国地图入口 */}
+          <a
+            href="/china-map"
+            className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-white hover:text-blue-600 transition hidden sm:block"
+          >
+            🇨🇳 全国地图
+          </a>
+
           {/* 更多下拉菜单 */}
           <div className="relative hidden sm:block">
             <button
@@ -196,7 +205,7 @@ export default function Header({ user }: HeaderProps) {
               onBlur={() => setTimeout(() => setMoreMenuOpen(false), 150)}
               className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-white hover:text-blue-600 transition flex items-center gap-1"
             >
-              ⚡ 更多
+              更多
               <svg
                 className={`w-3 h-3 transition-transform ${moreMenuOpen ? "rotate-180" : ""}`}
                 fill="none"
@@ -304,6 +313,17 @@ export default function Header({ user }: HeaderProps) {
                 ))}
               </div>
             )}
+          </div>
+
+          {/* 帮助中心 */}
+          <a
+            href="/help"
+            className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-white hover:text-blue-600 transition hidden sm:block"
+          >
+            帮助
+          </a>
+          <div className="hidden sm:block">
+            <MapModeSwitcher compact showReason />
           </div>
         </div>
 

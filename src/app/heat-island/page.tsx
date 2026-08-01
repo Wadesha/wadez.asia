@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import {
   getHeatIslandCities,
   getCities,
@@ -12,6 +13,23 @@ import {
   type HeatLevel,
   type ZoneType,
 } from "@/lib/heat-island-data";
+import { detectAnomalies } from "@/lib/anomaly-detector";
+import AnomalyPanel from "@/components/AnomalyPanel";
+import { forecastTrend } from "@/lib/trend-forecast";
+import TrendForecastPanel from "@/components/TrendForecastPanel";
+import { calculateDataQuality } from "@/lib/data-quality";
+import QualityBadge from "@/components/QualityBadge";
+import { checkDataFreshness } from "@/lib/auto-update";
+import DataUpdateBanner from "@/components/DataUpdateBanner";
+
+const HeatIslandMap = dynamic(() => import("@/components/HeatIslandMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-[500px] bg-gray-100 rounded-xl flex items-center justify-center">
+      <span className="text-gray-400 text-xs">地图加载中...</span>
+    </div>
+  ),
+});
 
 export default function HeatIslandPage() {
   const cities = getHeatIslandCities();
@@ -20,11 +38,25 @@ export default function HeatIslandPage() {
   const [levelFilter, setLevelFilter] = useState<HeatLevel | "all">("all");
   const [typeFilter, setTypeFilter] = useState<ZoneType | "all">("all");
   const [selectedZone, setSelectedZone] = useState<HeatZone | null>(null);
+  const [dataMode] = useState<"simulated" | "real">("simulated");
 
   const currentCity = useMemo(
     () => cities.find((c) => c.id === cityId),
     [cities, cityId]
   );
+
+  const quality = useMemo(() => {
+    if (!currentCity) return null;
+    return calculateDataQuality({
+      dataSource: currentCity.dataSource,
+      recordCount: currentCity.zones.length,
+    });
+  }, [currentCity]);
+
+  const freshness = useMemo(() => {
+    if (!currentCity) return null;
+    return checkDataFreshness(undefined, currentCity.dataSource);
+  }, [currentCity]);
 
   const filteredZones = useMemo(() => {
     if (!currentCity) return [];
@@ -40,6 +72,46 @@ export default function HeatIslandPage() {
     const highCount = currentCity.zones.filter((z) => z.level === "high" || z.level === "extreme").length;
     const lowCount = currentCity.zones.filter((z) => z.level === "low").length;
     return { avgTemp, avgIntensity, highCount, lowCount };
+  }, [currentCity]);
+
+  const tempAnomalies = useMemo(() => {
+    if (!currentCity) return { anomalies: [], total: 0, criticalCount: 0, method: "std" as const };
+    return detectAnomalies(
+      currentCity.zones.map((z) => ({ id: z.id, name: z.name, value: z.temperature })),
+      { threshold: 1.5, method: "std", anomalyType: "temperature" }
+    );
+  }, [currentCity]);
+
+  const intensityAnomalies = useMemo(() => {
+    if (!currentCity) return { anomalies: [], total: 0, criticalCount: 0, method: "std" as const };
+    return detectAnomalies(
+      currentCity.zones.map((z) => ({ id: z.id, name: z.name, value: z.heatIslandIntensity })),
+      { threshold: 1.5, method: "std", anomalyType: "intensity" }
+    );
+  }, [currentCity]);
+
+  const tempForecast = useMemo(() => {
+    if (!currentCity) return { historical: [], forecast: [], slope: 0, intercept: 0, rSquared: 0, yearsAhead: 5 };
+    const historical = [
+      { year: 2021, value: Math.max(20, currentCity.avgTemperature - 1.2) },
+      { year: 2022, value: Math.max(20, currentCity.avgTemperature - 0.8) },
+      { year: 2023, value: Math.max(20, currentCity.avgTemperature - 0.4) },
+      { year: 2024, value: Math.max(20, currentCity.avgTemperature - 0.15) },
+      { year: 2025, value: currentCity.avgTemperature },
+    ];
+    return forecastTrend(historical, 5);
+  }, [currentCity]);
+
+  const intensityForecast = useMemo(() => {
+    if (!currentCity) return { historical: [], forecast: [], slope: 0, intercept: 0, rSquared: 0, yearsAhead: 5 };
+    const historical = [
+      { year: 2021, value: Math.max(0.5, currentCity.avgHeatIslandIntensity - 0.8) },
+      { year: 2022, value: Math.max(0.5, currentCity.avgHeatIslandIntensity - 0.5) },
+      { year: 2023, value: Math.max(0.5, currentCity.avgHeatIslandIntensity - 0.3) },
+      { year: 2024, value: Math.max(0.5, currentCity.avgHeatIslandIntensity - 0.1) },
+      { year: 2025, value: currentCity.avgHeatIslandIntensity },
+    ];
+    return forecastTrend(historical, 5);
   }, [currentCity]);
 
   if (!currentCity) {
@@ -65,8 +137,13 @@ export default function HeatIslandPage() {
               </Link>
               <div>
                 <h1 className="text-lg font-bold text-gray-900">
-                  🌡️ 城市热岛效应
+                  城市热岛效应
                 </h1>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                    {dataMode === "simulated" ? "模拟数据" : "真实数据"}
+                  </span>
+                </div>
                 <p className="text-[10px] text-gray-500 mt-0.5">
                   温度分布 · 热岛强度 · 影响因素 · 缓解建议
                 </p>
@@ -90,6 +167,7 @@ export default function HeatIslandPage() {
             </div>
           </div>
 
+          {freshness && <DataUpdateBanner result={freshness} className="mb-2" />}
           <div className="flex items-center gap-4 text-[11px] text-gray-500 pt-2 border-t border-gray-100 flex-wrap">
             <span>
               平均温度：<b className="text-gray-800">{stats.avgTemp}°C</b>
@@ -106,7 +184,10 @@ export default function HeatIslandPage() {
             <span>
               低温区：<b className="text-blue-600">{stats.lowCount}</b>
             </span>
-            <span className="ml-auto text-gray-400">v1.0.0</span>
+            <span className="ml-auto flex items-center gap-2">
+              {quality && <QualityBadge quality={quality} />}
+              <span className="text-gray-400">v1.0.0</span>
+            </span>
           </div>
         </div>
 
@@ -187,10 +268,25 @@ export default function HeatIslandPage() {
                 ))}
               </div>
             </div>
+
+            <AnomalyPanel result={tempAnomalies} title="温度异常检测" unit="°C" />
+            <AnomalyPanel result={intensityAnomalies} title="热岛强度异常检测" unit="°C" />
+            <TrendForecastPanel result={tempForecast} title="温度趋势预测" unit="°C" />
+            <TrendForecastPanel result={intensityForecast} title="热岛强度趋势预测" unit="°C" />
           </div>
 
-          {/* 右侧：详情 */}
-          <div className="lg:col-span-2">
+          {/* 右侧：地图 + 详情 */}
+          <div className="lg:col-span-2 space-y-3">
+            <div className="bg-white border border-gray-200 rounded-xl p-2">
+              <HeatIslandMap
+                zones={filteredZones}
+                center={currentCity.center}
+                zoom={11}
+                height="h-[400px]"
+                onZoneClick={setSelectedZone}
+                selectedId={selectedZone?.id}
+              />
+            </div>
             {selectedZone ? (
               <div className="space-y-3">
                 <div className="bg-white border border-gray-200 rounded-xl p-4">
@@ -317,7 +413,7 @@ export default function HeatIslandPage() {
 
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
                   <h3 className="text-xs font-semibold text-blue-800 mb-2">
-                    💡 缓解建议
+                    缓解建议
                   </h3>
                   <ul className="space-y-1">
                     {currentCity.mitigationStrategies.map((s, i) => (
@@ -331,7 +427,6 @@ export default function HeatIslandPage() {
             ) : (
               <div className="bg-white border border-gray-200 rounded-xl p-8 flex items-center justify-center h-96">
                 <div className="text-center text-gray-400">
-                  <div className="text-4xl mb-2">🌡️</div>
                   <p className="text-xs">请从左侧选择区域查看详情</p>
                 </div>
               </div>

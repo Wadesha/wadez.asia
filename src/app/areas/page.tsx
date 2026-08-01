@@ -10,6 +10,8 @@ import {
   type AreaType,
   type AreaShape,
 } from "@/lib/area-data";
+import { useRealDistrict } from "@/lib/use-real-district";
+import { DataSourceToggle, type DataSource } from "@/components/DataSourceToggle";
 
 const CATEGORY_LABELS: Record<AreaCategory, string> = {
   open: "开放性区域",
@@ -41,6 +43,10 @@ export default function AreasPage() {
   const [type, setType] = useState<AreaType | "all">("all");
   const [city, setCity] = useState<string>("all");
   const [keyword, setKeyword] = useState("");
+
+  const [dataSource, setDataSource] = useState<DataSource>("simulated");
+  const realDistrict = useRealDistrict();
+  const [searchTerm, setSearchTerm] = useState("");
 
   const cities = useMemo(() => {
     const set = new Set(allAreas.map((a) => a.city));
@@ -124,10 +130,22 @@ export default function AreasPage() {
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-xl p-3 mb-4">
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-gray-400">类型</span>
+        <DataSourceToggle
+          source={dataSource}
+          onChange={setDataSource}
+          simulatedCount={stats.total}
+          realDataCount={realDistrict.district ? 1 : 0}
+          loading={realDistrict.loading}
+          error={realDistrict.error}
+          apiName="高德行政区划API"
+        />
+
+        {dataSource === "simulated" ? (
+          <>
+            <div className="bg-white border border-gray-200 rounded-xl p-3 mb-4">
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-gray-400">类型</span>
               <div className="flex gap-1">
                 <button
                   onClick={() => setCategory("all")}
@@ -251,12 +269,20 @@ export default function AreasPage() {
           <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
             <p className="text-sm text-gray-400">未找到匹配的区域</p>
           </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                {filteredAreas.map((area) => (
+                  <AreaCard key={area.id} area={area} />
+                ))}
+              </div>
+            )}
+          </>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-            {filteredAreas.map((area) => (
-              <AreaCard key={area.id} area={area} />
-            ))}
-          </div>
+          <RealDistrictPanel
+            realDistrict={realDistrict}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+          />
         )}
 
         <div className="mt-6 text-center text-[10px] text-gray-400">
@@ -355,5 +381,129 @@ function AreaCard({ area }: { area: Area }) {
         ))}
       </div>
     </Link>
+  );
+}
+
+function RealDistrictPanel({
+  realDistrict,
+  searchTerm,
+  setSearchTerm,
+}: {
+  realDistrict: ReturnType<typeof useRealDistrict>;
+  searchTerm: string;
+  setSearchTerm: (v: string) => void;
+}) {
+  const { district, loading, error, isRealData, query } = realDistrict;
+
+  const handleSearch = () => {
+    if (!searchTerm.trim()) return;
+    query({ keywords: searchTerm.trim(), subdistrict: 1, extensions: "all" });
+  };
+
+  const pointCount = district?.polyline
+    ? district.polyline
+        .replace(/\|/g, ";")
+        .split(";")
+        .filter(Boolean).length
+    : 0;
+
+  return (
+    <div className="space-y-3">
+      <div className="bg-white border border-gray-200 rounded-xl p-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-400 whitespace-nowrap">查询区域</span>
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSearch();
+            }}
+            placeholder="如：海淀区、上海市、北京市"
+            className="flex-1 px-2.5 py-1 text-xs bg-gray-50 border border-gray-200 rounded-md text-gray-700 outline-none focus:ring-1 focus:ring-gray-300"
+          />
+          <button
+            onClick={handleSearch}
+            disabled={loading || !searchTerm.trim()}
+            className="px-3 py-1 text-xs bg-gray-900 text-white rounded-md hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+          >
+            {loading ? "查询中..." : "查询"}
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-xl p-3">
+        <div className="flex items-center gap-2 text-xs flex-wrap">
+          <span className="text-gray-400">状态:</span>
+          {loading && (
+            <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-200">
+              查询中...
+            </span>
+          )}
+          {error && (
+            <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-200">
+              ⚠ {error}
+            </span>
+          )}
+          {isRealData && !loading && !error && (
+            <span className="px-2 py-0.5 rounded bg-green-50 text-green-600 border border-green-200">
+              ✓ 真实数据
+            </span>
+          )}
+          {!loading && !error && !isRealData && (
+            <span className="text-gray-400">尚未查询</span>
+          )}
+        </div>
+      </div>
+
+      {district && (
+        <div className="bg-white border border-gray-200 rounded-xl p-3">
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
+            <h3 className="text-sm font-bold text-gray-900">{district.name}</h3>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200">
+              {district.level}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+            <div>
+              <span className="text-gray-400">adcode:</span>{" "}
+              <span className="font-mono">{district.adcode}</span>
+            </div>
+            <div>
+              <span className="text-gray-400">中心点:</span>{" "}
+              <span className="font-mono">{district.center}</span>
+            </div>
+            <div>
+              <span className="text-gray-400">边界点数:</span>{" "}
+              <span className="font-mono">{pointCount}</span>
+            </div>
+            <div>
+              <span className="text-gray-400">下级区划:</span>{" "}
+              <span>{district.districts.length}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {district && district.districts.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-xl p-3">
+          <div className="text-xs text-gray-400 mb-2">下级区划（点击查询）</div>
+          <div className="flex flex-wrap gap-1.5">
+            {district.districts.map((d) => (
+              <button
+                key={d.adcode}
+                onClick={() => {
+                  setSearchTerm(d.name);
+                  query({ keywords: d.name, subdistrict: 1, extensions: "all" });
+                }}
+                className="px-2.5 py-1 text-xs bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 hover:border-gray-300 border border-gray-200 transition"
+              >
+                {d.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

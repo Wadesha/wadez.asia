@@ -32,6 +32,7 @@ export interface LandUseRegion {
   patches: LandUsePatch[];
   areaByType: Record<LandUseType, number>;
   percentageByType: Record<LandUseType, number>;
+  dataSource: "simulated" | "real";
 }
 
 export const LAND_USE_LABELS: Record<LandUseType, string> = {
@@ -206,6 +207,7 @@ function generateRegion(
     patches,
     areaByType,
     percentageByType,
+    dataSource: "simulated",
   };
 }
 

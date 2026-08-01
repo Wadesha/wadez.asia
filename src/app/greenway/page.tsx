@@ -14,6 +14,8 @@ import {
   type GreenwaySegment,
   type GreenwayNode,
 } from "@/lib/greenway-data";
+import { useRealAround, GREEN_TYPE_CODES } from "@/lib/use-real-around";
+import { DataSourceToggle, type DataSource } from "@/components/DataSourceToggle";
 import type { GreenwayColorMode } from "@/components/GreenwayMap";
 
 const GreenwayMap = dynamic(() => import("@/components/GreenwayMap"), {
@@ -38,6 +40,18 @@ export default function GreenwayPage() {
   const [showBreakpoints, setShowBreakpoints] = useState(true);
   const [selectedSegment, setSelectedSegment] = useState<GreenwaySegment | null>(null);
   const [selectedNode, setSelectedNode] = useState<GreenwayNode | null>(null);
+  const [dataSource, setDataSource] = useState<DataSource>("simulated");
+  const [locationInput, setLocationInput] = useState("116.397428,39.90923");
+  const realGreens = useRealAround();
+
+  const handleRealGreenSearch = () => {
+    if (!locationInput.trim()) return;
+    realGreens.search({
+      location: locationInput.trim(),
+      types: GREEN_TYPE_CODES,
+      radius: 5000,
+    });
+  };
 
   const currentGreenway = useMemo(
     () => greenways.find((g) => g.id === greenwayId),
@@ -125,6 +139,24 @@ export default function GreenwayPage() {
           </div>
         </div>
 
+        <DataSourceToggle
+          source={dataSource}
+          onChange={setDataSource}
+          simulatedCount={greenways.length}
+          realDataCount={realGreens.pois.length}
+          loading={realGreens.loading}
+          error={realGreens.error}
+          apiName="高德周边搜索API"
+        />
+
+        {dataSource === "real" ? (
+          <RealGreenPanel
+            realGreens={realGreens}
+            locationInput={locationInput}
+            setLocationInput={setLocationInput}
+            onSearch={handleRealGreenSearch}
+          />
+        ) : (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
           <div className="lg:col-span-1 space-y-3">
             <div className="bg-white border border-gray-200 rounded-xl p-3">
@@ -407,11 +439,132 @@ export default function GreenwayPage() {
             </div>
           </div>
         </div>
+        )}
 
         <div className="mt-6 text-center text-[10px] text-gray-400">
           绿道与慢行系统 — 线性空间的连通质量决定慢行体验
         </div>
       </div>
+    </div>
+  );
+}
+
+function RealGreenPanel({
+  realGreens,
+  locationInput,
+  setLocationInput,
+  onSearch,
+}: {
+  realGreens: ReturnType<typeof useRealAround>;
+  locationInput: string;
+  setLocationInput: (v: string) => void;
+  onSearch: () => void;
+}) {
+  const { pois, loading, error, isRealData } = realGreens;
+
+  return (
+    <div className="space-y-3">
+      <div className="bg-white border border-gray-200 rounded-xl p-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-gray-400 whitespace-nowrap">坐标 (lng,lat)</span>
+          <input
+            type="text"
+            value={locationInput}
+            onChange={(e) => setLocationInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onSearch();
+            }}
+            placeholder="如：116.397428,39.90923"
+            className="flex-1 min-w-[200px] px-2.5 py-1 text-xs bg-gray-50 border border-gray-200 rounded-md text-gray-700 outline-none focus:ring-1 focus:ring-gray-300 font-mono"
+          />
+          <button
+            onClick={onSearch}
+            disabled={loading || !locationInput.trim()}
+            className="px-3 py-1 text-xs bg-gray-900 text-white rounded-md hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+          >
+            {loading ? "搜索中..." : "搜索周边绿地"}
+          </button>
+        </div>
+        <p className="text-[10px] text-gray-400 mt-1.5 leading-relaxed">
+          搜索半径 5km，类型：公园广场（高德 typecode 110101）。输入经纬度坐标后回车或点击按钮搜索。
+        </p>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-xl p-3">
+        <div className="flex items-center gap-2 text-xs flex-wrap">
+          <span className="text-gray-400">状态：</span>
+          {loading && (
+            <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-200">
+              查询中...
+            </span>
+          )}
+          {error && (
+            <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-200">
+              ⚠ {error}
+            </span>
+          )}
+          {isRealData && !loading && !error && (
+            <span className="px-2 py-0.5 rounded bg-green-50 text-green-600 border border-green-200">
+              ✓ 真实数据 {pois.length} 条
+            </span>
+          )}
+          {!loading && !error && !isRealData && (
+            <span className="text-gray-400">尚未查询</span>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+        <p className="text-[11px] text-amber-700 leading-relaxed">
+          ⓘ 说明：此处返回的是真实<b>公园/广场点状 POI</b>（高德数据）。真实<b>绿道路径线</b>（如滨河绿道、慢行道线型）需接入 OpenStreetMap 数据，当前未集成。
+        </p>
+      </div>
+
+      {pois.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-xl p-3">
+          <div className="flex items-center justify-between mb-2.5">
+            <h3 className="text-xs font-semibold text-gray-800">
+              周边绿地 POI
+            </h3>
+            <span className="text-[10px] text-gray-400">{pois.length} 条</span>
+          </div>
+          <div className="space-y-1.5 max-h-[600px] overflow-y-auto">
+            {pois.map((poi) => (
+              <div
+                key={poi.id}
+                className="border border-gray-100 rounded-lg p-2 hover:bg-gray-50 transition"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-medium text-gray-900 truncate">
+                      {poi.name}
+                    </div>
+                    <div className="text-[10px] text-gray-500 mt-0.5 truncate">
+                      {poi.type || "公园广场"}
+                    </div>
+                    {poi.address && (
+                      <div className="text-[10px] text-gray-400 mt-0.5 truncate">
+                        📍 {poi.address}
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <div className="text-[10px] text-gray-400">距离</div>
+                    <div className="text-xs text-gray-700 font-medium">
+                      {poi.distance >= 1000
+                        ? `${(poi.distance / 1000).toFixed(1)} km`
+                        : `${poi.distance} m`}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-[9px] text-gray-400 font-mono mt-1">
+                  {poi.lng.toFixed(6)}, {poi.lat.toFixed(6)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

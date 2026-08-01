@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import type { Building, BuildingFunction } from "@/lib/building-morphology-data";
 import { FUNCTION_COLORS, getHeightColor } from "@/lib/building-morphology-data";
+import { loadAMap, isAMapConfigured } from "@/lib/load-amap";
+import SchematicMap, { type SchematicPolygon } from "@/components/SchematicMap";
+import OsmMap from "@/components/OsmMap";
+import { useMapMode } from "@/context/MapModeContext";
 
 export type ColorMode = "height" | "function" | "era";
 export type ViewMode = "top" | "perspective";
@@ -17,31 +21,6 @@ interface BuildingMapProps {
   onBuildingClick?: (building: Building) => void;
 }
 
-function loadAMapScript(): Promise<any> {
-  return new Promise((resolve, reject) => {
-    if ((window as any).AMap) {
-      resolve((window as any).AMap);
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = `https://webapi.amap.com/maps?v=2.0&key=${process.env.NEXT_PUBLIC_AMAP_KEY}&securityCode=${process.env.NEXT_PUBLIC_AMAP_SECURITY_CODE}`;
-    script.async = true;
-    script.onload = () => {
-      const AMap = (window as any).AMap;
-      if (AMap) {
-        resolve(AMap);
-      } else {
-        reject(new Error("AMap not loaded"));
-      }
-    };
-    script.onerror = () => {
-      reject(new Error("Failed to load AMap script"));
-    };
-    document.head.appendChild(script);
-  });
-}
-
 export default function BuildingMap({
   buildings,
   center,
@@ -51,16 +30,72 @@ export default function BuildingMap({
   viewMode,
   onBuildingClick,
 }: BuildingMapProps) {
+  const { mode: mapMode } = useMapMode();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
   const mapRef = useRef<any>(null);
   const polygonsRef = useRef<any[]>([]);
 
+  const schematicPolygons = useMemo<SchematicPolygon[]>(() => {
+    return buildings.map((b, i) => {
+      const h = b.heightM;
+      let shade: 300 | 400 | 500 | 600 | 700 | 800 | 900;
+      if (h < 24) shade = 300;
+      else if (h < 60) shade = 500;
+      else if (h < 100) shade = 700;
+      else shade = 900;
+      return {
+        id: b.id || i,
+        path: b.boundary.map(([lng, lat]) => ({ lng, lat })),
+        shade,
+        opacity: 0.6,
+        label: b.name,
+        onClick: onBuildingClick ? () => onBuildingClick(b) : undefined,
+      };
+    });
+  }, [buildings, onBuildingClick]);
+
+  const schematicLegend = [
+    { label: "低层 (<24m)", kind: "area" as const, shade: 300 },
+    { label: "多层 (24-60m)", kind: "area" as const, shade: 500 },
+    { label: "高层 (60-100m)", kind: "area" as const, shade: 700 },
+    { label: "超高层 (>100m)", kind: "area" as const, shade: 900 },
+  ];
+
+  if (mapMode === "schematic") {
+    return (
+      <SchematicMap
+        height={500}
+        polygons={schematicPolygons}
+        legend={schematicLegend}
+        title="建筑形态示意图"
+        showCompass
+      />
+    );
+  }
+  if (mapMode === "osm") {
+    return (
+      <OsmMap
+        height={500}
+        center={center}
+        zoom={zoom}
+        polygons={schematicPolygons}
+        legend={schematicLegend}
+        title="建筑形态示意图"
+      />
+    );
+  }
+
   useEffect(() => {
     let mounted = true;
 
-    loadAMapScript()
+    if (!isAMapConfigured()) {
+      setMapError("高德地图 API Key 未配置，地图无法显示");
+      return;
+    }
+
+    loadAMap()
       .then((AMap) => {
         if (!mounted || !mapContainerRef.current) return;
 

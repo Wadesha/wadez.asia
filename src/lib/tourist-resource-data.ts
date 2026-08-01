@@ -27,6 +27,8 @@ export interface TouristCity {
   totalResources: number;
   avgRating: number;
   resources: TouristResource[];
+  dataSource: "simulated" | "real";
+  lastUpdated: string;
 }
 
 export const TOURIST_TYPE_LABELS: Record<TouristType, string> = {
@@ -112,6 +114,8 @@ function generateCity(
     totalResources: res.length,
     avgRating: +(res.reduce((s, r) => s + r.rating, 0) / res.length).toFixed(1),
     resources: res,
+    dataSource: "simulated",
+    lastUpdated: "2025-01-15",
   };
 }
 

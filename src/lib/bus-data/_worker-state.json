@@ -2,76 +2,76 @@
   {
     "city": "北京",
     "status": "completed",
-    "lastUpdate": "2026-07-27T06:46:33.103Z",
+    "lastUpdate": "2026-07-31T07:25:50.769Z",
     "totalLines": 0
   },
   {
     "city": "上海",
     "status": "completed",
-    "lastUpdate": "2026-07-27T08:20:46.855Z",
+    "lastUpdate": "2026-07-31T08:25:57.911Z",
     "totalLines": 0,
     "lastError": "exit code 1"
   },
   {
     "city": "广州",
     "status": "completed",
-    "lastUpdate": "2026-07-27T08:20:53.547Z",
+    "lastUpdate": "2026-07-31T08:26:04.685Z",
     "totalLines": 0,
     "lastError": "exit code 1"
   },
   {
     "city": "深圳",
     "status": "completed",
-    "lastUpdate": "2026-07-27T08:21:00.373Z",
+    "lastUpdate": "2026-07-31T08:26:11.515Z",
     "totalLines": 0,
     "lastError": "exit code 1"
   },
   {
     "city": "杭州",
     "status": "completed",
-    "lastUpdate": "2026-07-27T08:21:07.090Z",
+    "lastUpdate": "2026-07-31T08:26:18.265Z",
     "totalLines": 0,
     "lastError": "exit code 1"
   },
   {
     "city": "南京",
     "status": "completed",
-    "lastUpdate": "2026-07-27T08:21:13.782Z",
+    "lastUpdate": "2026-07-31T08:26:25.039Z",
     "totalLines": 0,
     "lastError": "exit code 1"
   },
   {
     "city": "武汉",
     "status": "completed",
-    "lastUpdate": "2026-07-27T08:21:20.496Z",
+    "lastUpdate": "2026-07-31T08:26:31.936Z",
     "totalLines": 0,
     "lastError": "exit code 1"
   },
   {
     "city": "成都",
     "status": "completed",
-    "lastUpdate": "2026-07-27T08:21:27.266Z",
+    "lastUpdate": "2026-07-31T08:26:38.738Z",
     "totalLines": 0,
     "lastError": "exit code 1"
   },
   {
     "city": "西安",
     "status": "completed",
-    "lastUpdate": "2026-07-27T08:21:34.056Z",
+    "lastUpdate": "2026-07-31T08:26:45.530Z",
     "totalLines": 0,
     "lastError": "exit code 1"
   },
   {
     "city": "天津",
     "status": "completed",
-    "lastUpdate": "2026-07-27T08:21:40.681Z",
+    "lastUpdate": "2026-07-31T08:26:52.281Z",
     "totalLines": 0,
     "lastError": "exit code 1"
   },
   {
     "city": "重庆",
     "status": "completed",
-    "lastUpdate": "2026-07-27T08:21:47.592Z",
+    "lastUpdate": "2026-07-31T08:26:59.028Z",
     "totalLines": 0,
     "lastError": "exit code 1"
   }

@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import {
   getNoiseCities,
   NOISE_LEVEL_LABELS,
@@ -11,6 +12,21 @@ import {
   type NoiseMonitor,
   type NoiseLevel,
 } from "@/lib/noise-pollution-data";
+import { detectAnomalies } from "@/lib/anomaly-detector";
+import AnomalyPanel from "@/components/AnomalyPanel";
+import { calculateDataQuality } from "@/lib/data-quality";
+import QualityBadge from "@/components/QualityBadge";
+import { checkDataFreshness } from "@/lib/auto-update";
+import DataUpdateBanner from "@/components/DataUpdateBanner";
+
+const NoisePollutionMap = dynamic(() => import("@/components/NoisePollutionMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-[400px] bg-gray-100 rounded-xl flex items-center justify-center">
+      <span className="text-gray-400 text-xs">地图加载中...</span>
+    </div>
+  ),
+});
 
 export default function NoisePollutionPage() {
   const cities = getNoiseCities();
@@ -22,6 +38,19 @@ export default function NoisePollutionPage() {
     () => cities.find((c) => c.id === cityId),
     [cities, cityId]
   );
+
+  const quality = useMemo(() => {
+    if (!currentCity) return null;
+    return calculateDataQuality({
+      dataSource: "simulated",
+      recordCount: currentCity.monitors.length,
+    });
+  }, [currentCity]);
+
+  const freshness = useMemo(() => {
+    if (!currentCity) return null;
+    return checkDataFreshness(undefined, "simulated");
+  }, [currentCity]);
 
   const filteredMonitors = useMemo(() => {
     if (!currentCity) return [];
@@ -38,6 +67,14 @@ export default function NoisePollutionPage() {
     ).length;
     const affected = currentCity.monitors.reduce((s, m) => s + m.affectedPopulation, 0);
     return { avgDb, harmful, affected };
+  }, [currentCity]);
+
+  const noiseAnomalies = useMemo(() => {
+    if (!currentCity) return { anomalies: [], total: 0, criticalCount: 0, method: "std" as const };
+    return detectAnomalies(
+      currentCity.monitors.map((m) => ({ id: m.id, name: m.name, value: m.decibel })),
+      { threshold: 1.5, method: "std", anomalyType: "noise" }
+    );
   }, [currentCity]);
 
   if (!currentCity) {
@@ -100,6 +137,7 @@ export default function NoisePollutionPage() {
             </div>
           </div>
 
+          {freshness && <DataUpdateBanner result={freshness} className="mb-2" />}
           <div className="flex items-center gap-4 text-[11px] text-gray-500 pt-2 border-t border-gray-100 flex-wrap">
             <span>
               监测点：<b className="text-gray-800">{filteredMonitors.length}</b>
@@ -116,7 +154,10 @@ export default function NoisePollutionPage() {
             <span>
               影响人口：<b className="text-orange-600">{(stats.affected / 10000).toFixed(1)}万</b>
             </span>
-            <span className="ml-auto text-gray-400">v1.0.0</span>
+            <span className="ml-auto flex items-center gap-2">
+              {quality && <QualityBadge quality={quality} />}
+              <span className="text-gray-400">v1.0.0</span>
+            </span>
           </div>
         </div>
 
@@ -161,10 +202,22 @@ export default function NoisePollutionPage() {
                 ))}
               </div>
             </div>
+
+            <AnomalyPanel result={noiseAnomalies} title="噪声异常检测" unit="dB" />
           </div>
 
-          {/* 右侧：详情 */}
-          <div className="lg:col-span-2">
+          {/* 右侧：地图 + 详情 */}
+          <div className="lg:col-span-2 space-y-3">
+            <div className="bg-white border border-gray-200 rounded-xl p-2">
+              <NoisePollutionMap
+                monitors={filteredMonitors}
+                center={currentCity.center}
+                zoom={11}
+                height="h-[400px]"
+                onMonitorClick={setSelectedMonitor}
+                selectedId={selectedMonitor?.id}
+              />
+            </div>
             {selectedMonitor ? (
               <div className="space-y-3">
                 <div className="bg-white border border-gray-200 rounded-xl p-4">

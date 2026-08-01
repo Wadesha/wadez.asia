@@ -1,7 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import type { Area, AreaEntrance } from "@/lib/area-data";
+import { loadAMap, isAMapConfigured } from "@/lib/load-amap";
+import SchematicMap, {
+  type SchematicPolygon,
+  type SchematicPoint,
+} from "@/components/SchematicMap";
+import OsmMap from "@/components/OsmMap";
+import { useMapMode } from "@/context/MapModeContext";
 
 interface AreaMapProps {
   area: Area;
@@ -10,43 +17,77 @@ interface AreaMapProps {
   onEntranceClick?: (entrance: AreaEntrance) => void;
 }
 
-function loadAMapScript(): Promise<any> {
-  return new Promise((resolve, reject) => {
-    if ((window as any).AMap) {
-      resolve((window as any).AMap);
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = `https://webapi.amap.com/maps?v=2.0&key=${process.env.NEXT_PUBLIC_AMAP_KEY}&securityCode=${process.env.NEXT_PUBLIC_AMAP_SECURITY_CODE}&plugin=AMap.PolygonEditor`;
-    script.async = true;
-    script.onload = () => {
-      const AMap = (window as any).AMap;
-      if (AMap) {
-        resolve(AMap);
-      } else {
-        reject(new Error("AMap not loaded"));
-      }
-    };
-    script.onerror = () => {
-      reject(new Error("Failed to load AMap script"));
-    };
-    document.head.appendChild(script);
-  });
-}
-
 export default function AreaMap({
   area,
   height = "h-72",
   showLegend = true,
   onEntranceClick,
 }: AreaMapProps) {
+  const { mode: mapMode } = useMapMode();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
   const mapRef = useRef<any>(null);
   const polygonRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
+
+  const schematicPolygons = useMemo<SchematicPolygon[]>(() => {
+    if (!area?.boundary?.length) return [];
+    const shadeCycle: Array<300 | 400 | 500 | 600 | 700> = [300, 400, 500, 600, 700];
+    const shade = shadeCycle[0];
+    return [
+      {
+        id: area.id,
+        path: area.boundary.map(([lng, lat]) => ({ lng, lat })),
+        shade,
+        opacity: 0.55,
+        label: area.name,
+      },
+    ];
+  }, [area]);
+
+  const schematicPoints = useMemo<SchematicPoint[]>(() => {
+    if (!area?.entrances) return [];
+    return area.entrances.map((e, i) => ({
+      id: e.id || `ent-${i}`,
+      lng: e.lng,
+      lat: e.lat,
+      category: 1,
+      r: e.type === "main" ? 4 : 3,
+      label: e.name,
+      onClick: onEntranceClick ? () => onEntranceClick(e) : undefined,
+    }));
+  }, [area, onEntranceClick]);
+
+  const schematicLegend = [
+    { label: "区域", kind: "area" as const, shade: 300 },
+    { label: "出入口", kind: "point" as const, category: 1 },
+  ];
+
+  if (mapMode === "schematic") {
+    return (
+      <SchematicMap
+        height={400}
+        polygons={schematicPolygons}
+        points={schematicPoints}
+        legend={schematicLegend}
+        title={area?.name || "区域示意图"}
+        showCompass
+      />
+    );
+  }
+  if (mapMode === "osm") {
+    return (
+      <OsmMap
+        height={500}
+        center={area?.center}
+        polygons={schematicPolygons}
+        points={schematicPoints}
+        legend={schematicLegend}
+        title={area?.name || "区域示意图"}
+      />
+    );
+  }
 
   const drawArea = useCallback(
     (AMap: any, currentMap: any) => {
@@ -199,9 +240,14 @@ export default function AreaMap({
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
+    if (!isAMapConfigured()) {
+      setMapError("高德地图 API Key 未配置，地图无法显示");
+      return;
+    }
+
     const initMap = async () => {
       try {
-        const AMap = await loadAMapScript();
+        const AMap = await loadAMap(["AMap.PolygonEditor"]);
 
         const newMap = new AMap.Map(mapContainerRef.current, {
           zoom: 14,

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import SmartRecommend from "@/components/SmartRecommend";
 
 const PLANNING_TOOLS = [
   {
@@ -34,34 +35,34 @@ const PLANNING_TOOLS = [
     status: "已上线",
   },
   {
-    href: "#",
+    href: "/public-service",
     icon: "🏥",
     title: "公共服务设施",
     slogan: "15分钟生活圈的质量",
     desc: "教育、医疗、文体、养老设施覆盖率与可达性分析",
     tags: ["公服设施", "覆盖率", "服务半径"],
     color: "from-teal-500 to-emerald-400",
-    status: "即将上线",
+    status: "已上线",
   },
   {
-    href: "#",
+    href: "/skyline",
     icon: "🌆",
     title: "城市天际线",
     slogan: "高度控制塑造城市轮廓",
     desc: "天际线剖面分析，视线通廊，高度控制分区",
     tags: ["天际线", "高度控制", "视线通廊"],
     color: "from-violet-500 to-purple-400",
-    status: "即将上线",
+    status: "已上线",
   },
   {
-    href: "#",
+    href: "/traffic-capacity",
     icon: "🚗",
     title: "交通承载力",
     slogan: "路网能否支撑城市生长",
     desc: "路网密度分析，拥堵热力，停车供需评估",
     tags: ["路网密度", "拥堵分析", "停车供需"],
     color: "from-slate-500 to-gray-400",
-    status: "即将上线",
+    status: "已上线",
   },
 ];
 
@@ -84,7 +85,7 @@ export default function PlanningExplorerPage() {
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/5 rounded-full border border-white/10 mb-4">
             <span className="text-xs text-amber-400">URBAN PLANNING TOOLKIT</span>
             <span className="text-[10px] px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded-full">
-              v1.2 · 3/6 已上线
+              v1.2 · 6/6 已上线
             </span>
           </div>
           <h1 className="text-4xl font-bold text-white mb-3">
@@ -174,12 +175,12 @@ export default function PlanningExplorerPage() {
             </div>
             <div className="w-px h-8 bg-white/10" />
             <div className="text-center">
-              <div className="text-lg font-bold text-green-400">3</div>
+              <div className="text-lg font-bold text-green-400">6</div>
               <div className="text-[10px] text-gray-500">已上线</div>
             </div>
             <div className="w-px h-8 bg-white/10" />
             <div className="text-center">
-              <div className="text-lg font-bold text-amber-400">3</div>
+              <div className="text-lg font-bold text-amber-400">0</div>
               <div className="text-[10px] text-gray-500">开发中</div>
             </div>
             <div className="w-px h-8 bg-white/10" />
@@ -193,6 +194,7 @@ export default function PlanningExplorerPage() {
           </p>
         </div>
 
+        <SmartRecommend />
         {/* 返回 GIS 工具箱 */}
         <div className="mt-12 text-center">
           <Link

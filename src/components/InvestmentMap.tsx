@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
+import { loadAMap, isAMapConfigured } from "@/lib/load-amap";
 import {
   INVESTMENT_TYPE_ICONS,
   INVESTMENT_TYPE_COLORS,
   STATUS_LABELS,
   type InvestmentProject,
 } from "@/lib/investment-data";
+import SchematicMap from "./SchematicMap";
+import OsmMap from "@/components/OsmMap";
+import { useMapMode } from "@/context/MapModeContext";
 
 interface InvestmentMapProps {
   projects: InvestmentProject[];
@@ -17,6 +21,47 @@ interface InvestmentMapProps {
   selectedId?: string;
 }
 
+function buildKeyZonePolygon(
+  projects: InvestmentProject[],
+  center: [number, number]
+): Array<{ lng: number; lat: number }> {
+  if (projects.length === 0) {
+    const r = 0.08;
+    const sides = 6;
+    const path: Array<{ lng: number; lat: number }> = [];
+    for (let i = 0; i < sides; i++) {
+      const angle = (i / sides) * Math.PI * 2;
+      path.push({
+        lng: center[0] + Math.cos(angle) * r,
+        lat: center[1] + Math.sin(angle) * r,
+      });
+    }
+    return path;
+  }
+  let minLng = Infinity,
+    maxLng = -Infinity,
+    minLat = Infinity,
+    maxLat = -Infinity;
+  projects.forEach((p) => {
+    if (p.lng < minLng) minLng = p.lng;
+    if (p.lng > maxLng) maxLng = p.lng;
+    if (p.lat < minLat) minLat = p.lat;
+    if (p.lat > maxLat) maxLat = p.lat;
+  });
+  const lngPad = (maxLng - minLng) * 0.2 || 0.05;
+  const latPad = (maxLat - minLat) * 0.2 || 0.05;
+  minLng -= lngPad;
+  maxLng += lngPad;
+  minLat -= latPad;
+  maxLat += latPad;
+  return [
+    { lng: minLng, lat: minLat },
+    { lng: maxLng, lat: minLat },
+    { lng: maxLng, lat: maxLat },
+    { lng: minLng, lat: maxLat },
+  ];
+}
+
 export default function InvestmentMap({
   projects,
   center,
@@ -25,25 +70,112 @@ export default function InvestmentMap({
   onProjectClick,
   selectedId,
 }: InvestmentMapProps) {
+  const { mode } = useMapMode();
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
+  const [mapError, setMapError] = useState<string | null>(null);
+
+  const altContent = useMemo(() => {
+    if (mode !== "schematic" && mode !== "osm") return null;
+
+    const maxInvest = projects.length > 0 ? Math.max(...projects.map((p) => p.totalInvestment)) : 1;
+
+    const points = projects.map((p) => {
+      const ratio = p.totalInvestment / maxInvest;
+      const r = 3 + ratio * 5;
+      const shadeIdx = Math.min(4, Math.floor(ratio * 5));
+      const shades: Array<400 | 500 | 600 | 700 | 800> = [400, 500, 600, 700, 800];
+      return {
+        id: p.id,
+        lng: p.lng,
+        lat: p.lat,
+        r,
+        shade: shades[shadeIdx],
+        label: `${p.name} (${p.totalInvestment}亿)`,
+        onClick: () => onProjectClick?.(p),
+      };
+    });
+
+    const polygons = [
+      {
+        id: "key-zone",
+        path: buildKeyZonePolygon(projects, center),
+        label: "重点招商区域",
+        shade: 400 as const,
+        opacity: 0.4,
+      },
+    ];
+
+    const legend = [
+      { label: "大项目(>=30亿)", kind: "point" as const, shade: 800 },
+      { label: "中项目(10-30亿)", kind: "point" as const, shade: 600 },
+      { label: "小项目(<10亿)", kind: "point" as const, shade: 400 },
+      { label: "招商区", kind: "area" as const, shade: 400 },
+    ];
+
+    const title = "招商项目示意图";
+
+    if (mode === "osm") {
+      return (
+        <div className={`w-full ${height}`}>
+          <OsmMap
+            height={500}
+            polygons={polygons}
+            points={points}
+            legend={legend}
+            title={title}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div className={`w-full ${height}`}>
+        <SchematicMap
+          width={800}
+          height={500}
+          polygons={polygons}
+          points={points}
+          legend={legend}
+          title={title}
+          showCompass
+          className="w-full"
+        />
+      </div>
+    );
+  }, [mode, projects, center, onProjectClick, height]);
+
+  if (altContent) return altContent;
 
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
-    const AMap = (window as any).AMap;
-    if (!AMap) return;
+    if (!isAMapConfigured()) {
+      setMapError("高德地图 API Key 未配置");
+      return;
+    }
 
-    const map = new AMap.Map(mapRef.current, {
-      center,
-      zoom,
-      mapStyle: "amap://styles/light",
-    });
-    mapInstanceRef.current = map;
+    let cancelled = false;
+    loadAMap()
+      .then((AMap) => {
+        if (cancelled || !mapRef.current || mapInstanceRef.current) return;
+        const map = new AMap.Map(mapRef.current, {
+          center,
+          zoom,
+          mapStyle: "amap://styles/light",
+        });
+        mapInstanceRef.current = map;
+      })
+      .catch((err) => {
+        if (!cancelled) setMapError(err.message);
+      });
 
     return () => {
-      map.destroy();
-      mapInstanceRef.current = null;
+      cancelled = true;
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.destroy();
+        mapInstanceRef.current = null;
+      }
     };
   }, [center, zoom]);
 
@@ -132,6 +264,14 @@ export default function InvestmentMap({
     );
     map.setBounds(bounds, [60, 60, 60, 60], false);
   }, [projects, selectedId, onProjectClick]);
+
+  if (mapError) {
+    return (
+      <div className={`w-full ${height} bg-gray-100 rounded-lg flex items-center justify-center`}>
+        <span className="text-gray-400 text-xs">{mapError}</span>
+      </div>
+    );
+  }
 
   return (
     <div className="relative rounded-xl overflow-hidden border border-gray-200">

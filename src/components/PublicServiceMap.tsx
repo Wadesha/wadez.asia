@@ -1,7 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { PublicFacility, FacilityCategory, FacilityType, facilityTypeNames, categoryNames } from '@/lib/public-service-data';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { loadAMap, isAMapConfigured } from "@/lib/load-amap";
+import { PublicFacility, FacilityCategory, FacilityType, facilityTypeNames, categoryNames, facilityCategoryMap } from '@/lib/public-service-data';
+import SchematicMap, { type SchematicPoint } from "@/components/SchematicMap";
+import OsmMap from "@/components/OsmMap";
+import { useMapMode } from "@/context/MapModeContext";
 
 interface PublicServiceMapProps {
   facilities: PublicFacility[];
@@ -34,6 +38,22 @@ const typeIcons: Record<FacilityType, string> = {
   day_care: '👶',
 };
 
+function getFacilityCategory(facility: PublicFacility): 0 | 1 | 2 | 3 | 4 {
+  if (facility.category === "education") return 0;
+  if (facility.category === "medical") return 1;
+  if (facility.category === "culture") return 2;
+  if (facility.type === "elderly_care" || facility.type === "day_care") return 3;
+  return 4;
+}
+
+const CATEGORY_LEGEND: Array<{ label: string; kind: "point"; category: 0 | 1 | 2 | 3 | 4 }> = [
+  { label: "教育设施", kind: "point", category: 0 },
+  { label: "医疗设施", kind: "point", category: 1 },
+  { label: "文体设施", kind: "point", category: 2 },
+  { label: "养老设施", kind: "point", category: 3 },
+  { label: "社区/其他", kind: "point", category: 4 },
+];
+
 export default function PublicServiceMap({
   facilities,
   center,
@@ -41,43 +61,95 @@ export default function PublicServiceMap({
   selectedType,
   onFacilityClick,
 }: PublicServiceMapProps) {
+  const { mode } = useMapMode();
   const mapRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<any>(null);
   const [markers, setMarkers] = useState<any[]>([]);
+  const [mapError, setMapError] = useState<string | null>(null);
+
+  const filteredFacilities = useMemo(() => {
+    let result = facilities;
+    if (selectedCategory) {
+      result = result.filter((f) => f.category === selectedCategory);
+    }
+    if (selectedType) {
+      result = result.filter((f) => f.type === selectedType);
+    }
+    return result;
+  }, [facilities, selectedCategory, selectedType]);
+
+  const schematicPoints = useMemo<SchematicPoint[]>(() => {
+    return filteredFacilities.map((f) => ({
+      id: f.id,
+      lng: f.location.lng,
+      lat: f.location.lat,
+      label: `${f.name} · ${facilityTypeNames[f.type]}`,
+      category: getFacilityCategory(f),
+      r: 5,
+      onClick: onFacilityClick ? () => onFacilityClick(f) : undefined,
+    }));
+  }, [filteredFacilities, onFacilityClick]);
+
+  const presentCats = useMemo(() => {
+    const set = new Set<number>(filteredFacilities.map((f) => getFacilityCategory(f)));
+    return CATEGORY_LEGEND.filter((l) => set.has(l.category));
+  }, [filteredFacilities]);
+
+  if (mode === "schematic") {
+    return (
+      <div className="relative rounded-xl overflow-hidden border border-gray-200 h-full">
+        <SchematicMap
+          width={800}
+          height={500}
+          points={schematicPoints}
+          legend={presentCats}
+          title="公共服务设施示意图"
+          showCompass
+        />
+      </div>
+    );
+  }
+
+  if (mode === "osm") {
+    return (
+      <div className="relative rounded-xl overflow-hidden border border-gray-200 h-full">
+        <OsmMap
+          width={800}
+          height={500}
+          points={schematicPoints}
+          legend={presentCats}
+          title="公共服务设施示意图"
+        />
+      </div>
+    );
+  }
 
   // 初始化地图
   useEffect(() => {
     if (!mapRef.current || map) return;
+    if (!isAMapConfigured()) {
+      setMapError("高德地图 API Key 未配置");
+      return;
+    }
 
-    const initMap = async () => {
-      const AMap = (window as any).AMap;
-      if (!AMap) {
-        console.error('高德地图 API 未加载');
-        return;
-      }
-
-      const mapInstance = new AMap.Map(mapRef.current, {
-        zoom: 12,
-        center: [center.lng, center.lat],
-        mapStyle: 'amap://styles/normal',
+    let cancelled = false;
+    loadAMap()
+      .then((AMap) => {
+        if (cancelled || !mapRef.current || map) return;
+        const mapInstance = new AMap.Map(mapRef.current, {
+          zoom: 12,
+          center: [center.lng, center.lat],
+          mapStyle: 'amap://styles/normal',
+        });
+        setMap(mapInstance);
+      })
+      .catch((err) => {
+        if (!cancelled) setMapError(err.message);
       });
 
-      setMap(mapInstance);
+    return () => {
+      cancelled = true;
     };
-
-    // 确保 AMap 已加载
-    if ((window as any).AMap) {
-      initMap();
-    } else {
-      const checkInterval = setInterval(() => {
-        if ((window as any).AMap) {
-          clearInterval(checkInterval);
-          initMap();
-        }
-      }, 100);
-
-      return () => clearInterval(checkInterval);
-    }
   }, [center]);
 
   // 更新标记
@@ -91,17 +163,8 @@ export default function PublicServiceMap({
     const AMap = (window as any).AMap;
     if (!AMap) return;
 
-    // 筛选设施
-    let filtered = facilities;
-    if (selectedCategory) {
-      filtered = filtered.filter(f => f.category === selectedCategory);
-    }
-    if (selectedType) {
-      filtered = filtered.filter(f => f.type === selectedType);
-    }
-
     // 添加新标记
-    const newMarkers = filtered.map(facility => {
+    const newMarkers = filteredFacilities.map(facility => {
       const color = categoryColors[facility.category];
       const icon = typeIcons[facility.type];
 
@@ -140,7 +203,15 @@ export default function PublicServiceMap({
     if (newMarkers.length > 0) {
       map.setFitView(newMarkers, false, [50, 50, 50, 50]);
     }
-  }, [map, facilities, selectedCategory, selectedType]);
+  }, [map, filteredFacilities, onFacilityClick]);
+
+  if (mapError) {
+    return (
+      <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">
+        <span className="text-gray-400 text-xs">{mapError}</span>
+      </div>
+    );
+  }
 
   return (
     <div className="relative h-full">

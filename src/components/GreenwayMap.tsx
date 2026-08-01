@@ -1,8 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import type { GreenwaySegment, GreenwayNode, GreenwayType, ConnectivityStatus } from "@/lib/greenway-data";
 import { GREENWAY_TYPE_COLORS, STATUS_COLORS } from "@/lib/greenway-data";
+import { loadAMap, isAMapConfigured } from "@/lib/load-amap";
+import SchematicMap, {
+  type SchematicPolyline,
+  type SchematicPoint,
+} from "@/components/SchematicMap";
+import OsmMap from "@/components/OsmMap";
+import { useMapMode } from "@/context/MapModeContext";
 
 export type GreenwayColorMode = "type" | "status" | "connectivity";
 
@@ -18,31 +25,6 @@ interface GreenwayMapProps {
   onNodeClick?: (node: GreenwayNode) => void;
 }
 
-function loadAMapScript(): Promise<any> {
-  return new Promise((resolve, reject) => {
-    if ((window as any).AMap) {
-      resolve((window as any).AMap);
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = `https://webapi.amap.com/maps?v=2.0&key=${process.env.NEXT_PUBLIC_AMAP_KEY}&securityCode=${process.env.NEXT_PUBLIC_AMAP_SECURITY_CODE}`;
-    script.async = true;
-    script.onload = () => {
-      const AMap = (window as any).AMap;
-      if (AMap) {
-        resolve(AMap);
-      } else {
-        reject(new Error("AMap not loaded"));
-      }
-    };
-    script.onerror = () => {
-      reject(new Error("Failed to load AMap script"));
-    };
-    document.head.appendChild(script);
-  });
-}
-
 export default function GreenwayMap({
   segments,
   nodes,
@@ -54,6 +36,7 @@ export default function GreenwayMap({
   onSegmentClick,
   onNodeClick,
 }: GreenwayMapProps) {
+  const { mode: mapMode } = useMapMode();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
@@ -61,10 +44,72 @@ export default function GreenwayMap({
   const polylineRef = useRef<any[]>([]);
   const markersRef = useRef<any[]>([]);
 
+  const schematicPolylines = useMemo<SchematicPolyline[]>(() => {
+    return segments.map((s, i) => ({
+      id: s.id || i,
+      path: s.geometry.map(([lng, lat]) => ({ lng, lat })),
+      shade: 500,
+      style: 2,
+      width: 2,
+      onClick: onSegmentClick ? () => onSegmentClick(s) : undefined,
+    }));
+  }, [segments, onSegmentClick]);
+
+  const schematicPoints = useMemo<SchematicPoint[]>(() => {
+    if (!showBreakpoints) return [];
+    return nodes
+      .filter((n) => n.isBreakpoint)
+      .map((n, i) => ({
+        id: n.id || `bp-${i}`,
+        lng: n.lng,
+        lat: n.lat,
+        category: 0,
+        r: 4,
+        label: n.breakReason,
+        onClick: onNodeClick ? () => onNodeClick(n) : undefined,
+      }));
+  }, [nodes, showBreakpoints, onNodeClick]);
+
+  const schematicLegend = [
+    { label: "绿道", kind: "line" as const, shade: 500 },
+    { label: "断点", kind: "point" as const, category: 0 },
+  ];
+
+  if (mapMode === "schematic") {
+    return (
+      <SchematicMap
+        height={500}
+        polylines={schematicPolylines}
+        points={schematicPoints}
+        legend={schematicLegend}
+        title="绿道网络示意图"
+        showCompass
+      />
+    );
+  }
+  if (mapMode === "osm") {
+    return (
+      <OsmMap
+        height={500}
+        center={center}
+        zoom={zoom}
+        polylines={schematicPolylines}
+        points={schematicPoints}
+        legend={schematicLegend}
+        title="绿道网络示意图"
+      />
+    );
+  }
+
   useEffect(() => {
     let mounted = true;
 
-    loadAMapScript()
+    if (!isAMapConfigured()) {
+      setMapError("高德地图 API Key 未配置，地图无法显示");
+      return;
+    }
+
+    loadAMap()
       .then((AMap) => {
         if (!mounted || !mapContainerRef.current) return;
 

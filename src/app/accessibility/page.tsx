@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import {
@@ -14,6 +14,13 @@ import {
   type FacilityType,
   type Facility,
 } from "@/lib/accessibility-data";
+import { useRealWalking } from "@/lib/use-real-walking";
+import { DataSourceToggle, type DataSource } from "@/components/DataSourceToggle";
+import SmartRecommend from "@/components/SmartRecommend";
+import { calibrateData } from "@/lib/multi-source-calibration";
+import CalibrationInfo from "@/components/CalibrationInfo";
+import { recordLineage } from "@/lib/data-lineage";
+import LineagePanel from "@/components/LineagePanel";
 
 const AccessibilityMap = dynamic(() => import("@/components/AccessibilityMap"), {
   ssr: false,
@@ -32,6 +39,9 @@ export default function AccessibilityPage() {
   const [showFacilities, setShowFacilities] = useState(true);
   const [origin, setOrigin] = useState<[number, number] | null>(null);
   const [selectedFacility, setSelectedFacility] = useState<Facility | null>(null);
+  const [dataSource, setDataSource] = useState<DataSource>("simulated");
+  const realWalking = useRealWalking();
+  const { plan: realPlan } = realWalking;
 
   const currentArea = useMemo(
     () => areas.find((a) => a.id === areaId),
@@ -72,6 +82,27 @@ export default function AccessibilityPage() {
 
   const totalFacilities = Object.values(facilityCounts).reduce((a, b) => a + b, 0);
 
+  // 多源数据校准：以各设施类型数量为源
+  const facilityCalibration = useMemo(() => {
+    const sources = allTypes.map((type) => ({
+      sourceId: type,
+      sourceName: FACILITY_LABELS[type],
+      value: facilityCounts[type] || 0,
+      timestamp: Date.now(),
+      weight: 1,
+    }));
+    return calibrateData(sources, { method: "median", outlierThreshold: 1.5 });
+  }, [allTypes, facilityCounts]);
+
+  // 数据血缘记录
+  const accessLineage = useMemo(() => {
+    return recordLineage(`accessibility-${areaId}`, dataSource === "real" ? "高德步行API" : "模拟数据", [
+      { stepId: "fetch", stepName: dataSource === "real" ? "API请求" : "生成模拟数据", timestamp: Date.now() },
+      { stepId: "isochrone", stepName: "计算等时圈", timestamp: Date.now() },
+      { stepId: "score", stepName: "可达性评分", timestamp: Date.now() },
+    ], { dependencies: [areaId] });
+  }, [areaId, dataSource]);
+
   const toggleType = (type: FacilityType) => {
     setActiveTypes((prev) =>
       prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
@@ -82,6 +113,15 @@ export default function AccessibilityPage() {
     setOrigin([lng, lat]);
     setSelectedFacility(null);
   }, []);
+
+  // 真实步行路径规划：在 real 模式下，当选中起点和设施时自动调用
+  useEffect(() => {
+    if (dataSource !== "real") return;
+    if (!selectedFacility || !origin) return;
+    const originLngLat = `${origin[0]},${origin[1]}`;
+    const destLngLat = `${selectedFacility.lng},${selectedFacility.lat}`;
+    realPlan(originLngLat, destLngLat);
+  }, [dataSource, selectedFacility, origin, realPlan]);
 
   if (!currentArea || !score) {
     return (
@@ -162,6 +202,60 @@ export default function AccessibilityPage() {
             <span className="text-gray-400">v1.0.0</span>
           </div>
         </div>
+
+        <DataSourceToggle
+          source={dataSource}
+          onChange={setDataSource}
+          simulatedCount={totalFacilities}
+          loading={realWalking.loading}
+          error={realWalking.error}
+          realDataCount={
+            realWalking.isRealData && realWalking.route ? 1 : undefined
+          }
+          apiName="高德步行路径API"
+        />
+
+        {dataSource === "real" && (
+          <div className="bg-white border border-gray-200 rounded-xl p-3 mb-3">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-semibold text-gray-800">
+                真实步行路径规划
+              </span>
+              <div className="flex items-center gap-1.5 text-[10px]">
+                {realWalking.loading && (
+                  <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-200">
+                    查询中...
+                  </span>
+                )}
+                {realWalking.error && !realWalking.loading && (
+                  <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-200">
+                    ⚠ {realWalking.error}
+                  </span>
+                )}
+                {realWalking.isRealData &&
+                  !realWalking.loading &&
+                  !realWalking.error && (
+                    <span className="px-2 py-0.5 rounded bg-green-50 text-green-600 border border-green-200">
+                      ✓ 真实数据
+                    </span>
+                  )}
+              </div>
+            </div>
+            <p className="text-[11px] text-gray-500">
+              点击地图选择起点，再点击设施计算真实步行距离
+            </p>
+            {!origin && (
+              <p className="text-[10px] text-amber-600 mt-1">
+                ⚠ 尚未选择起点，请先点击地图
+              </p>
+            )}
+            {origin && !selectedFacility && (
+              <p className="text-[10px] text-gray-400 mt-1">
+                ✓ 起点已选择，请点击设施查看路径
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
           <div className="lg:col-span-1 space-y-3">
@@ -325,6 +419,9 @@ export default function AccessibilityPage() {
                 })}
               </div>
             </div>
+
+            <CalibrationInfo result={facilityCalibration} title="设施数量校准" unit="个" />
+            <LineagePanel lineage={accessLineage} title="数据血缘" />
           </div>
 
           <div className="lg:col-span-3 space-y-3">
@@ -351,6 +448,13 @@ export default function AccessibilityPage() {
                     <h3 className="text-sm font-semibold text-gray-800">
                       {selectedFacility.name}
                     </h3>
+                    {dataSource === "real" &&
+                      realWalking.isRealData &&
+                      realWalking.route && (
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-green-50 text-green-600 border border-green-200">
+                          真实路径
+                        </span>
+                      )}
                   </div>
                   <button
                     onClick={() => setSelectedFacility(null)}
@@ -391,6 +495,61 @@ export default function AccessibilityPage() {
                     </span>
                   </div>
                 </div>
+
+                {dataSource === "real" &&
+                  realWalking.route &&
+                  realWalking.isRealData && (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-[10px] font-semibold text-gray-700">
+                          真实步行路径
+                        </span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-green-50 text-green-600 border border-green-200">
+                          高德API
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-[11px]">
+                        <div>
+                          <span className="text-gray-400">步行距离：</span>
+                          <span className="text-gray-800 font-medium">
+                            {realWalking.route.distance < 1000
+                              ? `${realWalking.route.distance} m`
+                              : `${(realWalking.route.distance / 1000).toFixed(2)} km`}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-400">步行时间：</span>
+                          <span className="text-gray-800 font-medium">
+                            {Math.round(realWalking.route.duration / 60)} 分钟
+                          </span>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-gray-400">路径段数：</span>
+                          <span className="text-gray-700">
+                            {realWalking.route.steps.length} 段
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                {dataSource === "real" && realWalking.loading && (
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    <span className="text-[11px] text-gray-400">
+                      正在计算真实步行路径...
+                    </span>
+                  </div>
+                )}
+
+                {dataSource === "real" &&
+                  realWalking.error &&
+                  !realWalking.loading && (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <span className="text-[11px] text-amber-600">
+                        ⚠ {realWalking.error}
+                      </span>
+                    </div>
+                  )}
               </div>
             )}
 
@@ -425,6 +584,7 @@ export default function AccessibilityPage() {
           </div>
         </div>
 
+        <SmartRecommend />
         <div className="mt-6 text-center text-[10px] text-gray-400">
           城市可达性分析器 — 量化你的 15 分钟生活圈
         </div>

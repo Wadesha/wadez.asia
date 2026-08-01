@@ -25,6 +25,8 @@ export default function BusinessSitingPage() {
   const areas = getBusinessSitingAreas();
   const [areaId, setAreaId] = useState(areas[0]?.id || "");
   const [selectedLocation, setSelectedLocation] = useState<LocationScore | null>(null);
+  const [dataMode, setDataMode] = useState<"simulated" | "real">("simulated");
+  const [showTip, setShowTip] = useState(false);
 
   const currentArea = useMemo(
     () => areas.find((a) => a.id === areaId),
@@ -56,8 +58,36 @@ export default function BusinessSitingPage() {
               </Link>
               <div>
                 <h1 className="text-lg font-bold text-gray-900">
-                  📍 商铺选址评估
+                  商铺选址评估
                 </h1>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                    {dataMode === "simulated" ? "模拟数据" : "真实数据"}
+                  </span>
+                  <div className="flex items-center bg-gray-100 rounded-md border border-gray-200 overflow-hidden">
+                    <button
+                      onClick={() => setDataMode("simulated")}
+                      className={`px-2 py-0.5 text-[10px] transition ${dataMode === "simulated" ? "bg-gray-800 text-white" : "text-gray-600 hover:bg-gray-200"}`}
+                    >
+                      模拟
+                    </button>
+                    <button
+                      onClick={() => {
+                        setDataMode("real");
+                        setShowTip(true);
+                        setTimeout(() => setShowTip(false), 3000);
+                      }}
+                      className={`px-2 py-0.5 text-[10px] transition ${dataMode === "real" ? "bg-gray-800 text-white" : "text-gray-600 hover:bg-gray-200"}`}
+                    >
+                      真实
+                    </button>
+                  </div>
+                  {showTip && (
+                    <span className="text-[10px] text-gray-500">
+                      真实数据接入需要高德API Key配置
+                    </span>
+                  )}
+                </div>
                 <p className="text-[10px] text-gray-500 mt-0.5">
                   好位置 = 成功的一半 — 多维度综合选址评估
                 </p>
@@ -106,7 +136,6 @@ export default function BusinessSitingPage() {
             {currentArea.bestLocation && (
               <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl p-4 text-white">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-lg">🏆</span>
                   <span className="text-xs font-medium text-green-100">最佳选址</span>
                 </div>
                 <div className="text-3xl font-bold mb-1">
@@ -309,7 +338,7 @@ export default function BusinessSitingPage() {
 
                 <div className="mt-3 pt-3 border-t border-gray-100">
                   <p className="text-[11px] text-gray-500">
-                    💡 <b>选址建议：</b>
+                    <b>选址建议：</b>
                     {selectedLocation.overallScore >= 80
                       ? "优质选址，建议优先考虑。人流量大、可达性好、竞争适中，具备良好盈利潜力。"
                       : selectedLocation.overallScore >= 60

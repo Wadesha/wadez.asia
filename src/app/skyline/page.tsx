@@ -2,20 +2,31 @@
 
 import { useState, useMemo } from 'react';
 import Head from 'next/head';
-import { 
-  getCitySkylineData, 
-  getAllCities, 
+import dynamic from 'next/dynamic';
+import {
+  getCitySkylineData,
+  getAllCities,
   filterBuildings,
   BuildingHeight,
   functionNames,
   statusNames,
 } from '@/lib/skyline-data';
 
+const SkylineMap = dynamic(() => import('@/components/SkylineMap'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-[400px] bg-gray-100 rounded-lg flex items-center justify-center">
+      <span className="text-gray-400 text-xs">地图加载中...</span>
+    </div>
+  ),
+});
+
 export default function SkylinePage() {
   const cities = getAllCities();
   const [selectedCity, setSelectedCity] = useState(cities[0]);
   const [minHeight, setMinHeight] = useState<number>(0);
   const [selectedFunc, setSelectedFunc] = useState<BuildingHeight['function'] | undefined>();
+  const [selectedBuilding, setSelectedBuilding] = useState<BuildingHeight | undefined>();
 
   const cityData = useMemo(() => getCitySkylineData(selectedCity), [selectedCity]);
   const filteredBuildings = useMemo(() => {
@@ -117,6 +128,33 @@ export default function SkylinePage() {
                   })}
                 </svg>
               </div>
+            </div>
+
+            {/* 建筑高度地图 */}
+            <div className="bg-white rounded-lg shadow-sm p-4">
+              <h3 className="text-sm font-medium text-gray-700 mb-3">建筑高度空间分布</h3>
+              <SkylineMap
+                buildings={filteredBuildings}
+                center={cityData.center}
+                zoom={12}
+                height="h-[400px]"
+                onBuildingClick={setSelectedBuilding}
+                selectedId={selectedBuilding?.id}
+              />
+              {selectedBuilding && (
+                <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-semibold text-gray-900">
+                      {selectedBuilding.name}
+                      {selectedBuilding.landmark && <span className="ml-2 text-[10px] text-blue-600">地标</span>}
+                    </span>
+                    <span className="text-sm font-bold text-gray-900">{selectedBuilding.height}m</span>
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {selectedBuilding.floors}层 · {functionNames[selectedBuilding.function]} · {selectedBuilding.yearBuilt}年建成 · {statusNames[selectedBuilding.status]}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* 高度分布图 */}

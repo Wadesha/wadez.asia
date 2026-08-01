@@ -15,6 +15,13 @@ import {
   type POI,
   type HeatGridCell,
 } from "@/lib/poi-heat-data";
+import { useRealPOIs, type RealPOI } from "@/lib/use-real-pois";
+import { DataSourceToggle, type DataSource } from "@/components/DataSourceToggle";
+import SmartRecommend from "@/components/SmartRecommend";
+import { calibrateData } from "@/lib/multi-source-calibration";
+import CalibrationInfo from "@/components/CalibrationInfo";
+import { recordLineage } from "@/lib/data-lineage";
+import LineagePanel from "@/components/LineagePanel";
 
 const POIHeatMap = dynamic(() => import("@/components/POIHeatMap"), {
   ssr: false,
@@ -49,6 +56,10 @@ export default function POIHeatPage() {
   const [selectedPOI, setSelectedPOI] = useState<POI | null>(null);
   const [compareMode, setCompareMode] = useState(false);
   const [compareCity, setCompareCity] = useState<string>(cities[1] || cities[0]);
+  const [dataSource, setDataSource] = useState<DataSource>("simulated");
+  const [searchKeyword, setSearchKeyword] = useState("");
+
+  const realPOIs = useRealPOIs();
 
   const cityCenter = getCityCenter(city);
   const compareCenter = getCityCenter(compareCity);
@@ -58,13 +69,54 @@ export default function POIHeatPage() {
     []
   );
 
-  const filteredPOIs = useMemo(() => {
+  // 真实数据触发搜索
+  const handleRealSearch = () => {
+    if (!searchKeyword.trim()) return;
+    const categoryTypes = selectedCategories.length === 1
+      ? CATEGORY_LABELS[selectedCategories[0]]
+      : undefined;
+    realPOIs.search({
+      keywords: searchKeyword,
+      city,
+      types: categoryTypes,
+    });
+  };
+
+  // 数据源切换处理
+  const handleDataSourceChange = (source: DataSource) => {
+    setDataSource(source);
+    if (source === "real" && searchKeyword.trim()) {
+      handleRealSearch();
+    }
+  };
+
+  // 模拟数据
+  const simulatedPOIs = useMemo(() => {
     let pois = getPOIsByCity(city);
     if (selectedCategories.length > 0) {
       pois = pois.filter((p) => selectedCategories.includes(p.category));
     }
     return pois;
   }, [city, selectedCategories]);
+
+  // 真实数据转换为 POI 格式
+  const realPOIsAdapted = useMemo<POI[]>(() => {
+    return realPOIs.pois.map((rp: RealPOI) => ({
+      id: rp.id,
+      name: rp.name,
+      category: "public-service" as POICategory,
+      subCategory: rp.type || "其他",
+      lng: rp.lng,
+      lat: rp.lat,
+      city: rp.city || city,
+      address: rp.address,
+    }));
+  }, [realPOIs.pois, city]);
+
+  // 当前使用的POI数据（根据数据源切换）
+  const filteredPOIs = dataSource === "real" && realPOIs.isRealData
+    ? realPOIsAdapted
+    : simulatedPOIs;
 
   const comparePOIs = useMemo(() => {
     let pois = getPOIsByCity(compareCity);
@@ -104,6 +156,38 @@ export default function POIHeatPage() {
   const totalCount = Object.values(stats).reduce((a, b) => a + b, 0);
   const compareTotalCount = Object.values(compareStats).reduce((a, b) => a + b, 0);
 
+  // 多源数据校准：以各分类的POI数量为源，对比模式下加入对比城市
+  const poiCalibration = useMemo(() => {
+    const sources = allCategories.map((cat) => ({
+      sourceId: `${city}-${cat}`,
+      sourceName: `${CATEGORY_LABELS[cat]}（${city}）`,
+      value: stats[cat],
+      timestamp: Date.now(),
+      weight: 1,
+    }));
+    if (compareMode) {
+      allCategories.forEach((cat) => {
+        sources.push({
+          sourceId: `${compareCity}-${cat}`,
+          sourceName: `${CATEGORY_LABELS[cat]}（${compareCity}）`,
+          value: compareStats[cat],
+          timestamp: Date.now(),
+          weight: 0.8,
+        });
+      });
+    }
+    return calibrateData(sources, { method: "mean", outlierThreshold: 2 });
+  }, [allCategories, stats, compareMode, compareStats, city, compareCity]);
+
+  // 数据血缘记录
+  const poiLineage = useMemo(() => {
+    return recordLineage(`poi-heat-${city}`, dataSource === "real" ? "高德API" : "模拟数据", [
+      { stepId: "fetch", stepName: dataSource === "real" ? "API请求" : "生成模拟数据", timestamp: Date.now() },
+      { stepId: "filter", stepName: "分类过滤", timestamp: Date.now() },
+      { stepId: "grid", stepName: "网格聚合", timestamp: Date.now() },
+    ], { dependencies: [city, compareCity] });
+  }, [city, compareCity, dataSource]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-4">
@@ -141,7 +225,7 @@ export default function POIHeatPage() {
 
           <div className="flex items-center gap-4 text-[11px] text-gray-500 pt-2 border-t border-gray-100 flex-wrap">
             <span>
-              总POI <b className="text-gray-800">{totalCount.toLocaleString()}</b> 个
+              总POI <b className="text-gray-800">{filteredPOIs.length.toLocaleString()}</b> 个
             </span>
             <span className="text-gray-200">|</span>
             <span>
@@ -160,9 +244,46 @@ export default function POIHeatPage() {
                 </span>
               </>
             )}
-            <span className="ml-auto text-gray-400">v1.0.0</span>
           </div>
         </div>
+
+        {/* 数据源切换 + 真实数据搜索 */}
+        <DataSourceToggle
+          source={dataSource}
+          onChange={handleDataSourceChange}
+          simulatedCount={simulatedPOIs.length}
+          realDataCount={realPOIs.pois.length}
+          loading={realPOIs.loading}
+          error={realPOIs.error}
+        />
+        {dataSource === "real" && (
+          <div className="bg-white border border-gray-200 rounded-lg p-3 mb-3">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleRealSearch();
+                }}
+                placeholder="输入关键词（如：北京大学、星巴克、医院）后回车搜索"
+                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+              />
+              <button
+                onClick={handleRealSearch}
+                disabled={!searchKeyword.trim() || realPOIs.loading}
+                className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-lg transition"
+              >
+                {realPOIs.loading ? "搜索中..." : "搜索真实POI"}
+              </button>
+            </div>
+            {realPOIs.isRealData && (
+              <div className="mt-2 text-[10px] text-green-600">
+                ✓ 已获取 {realPOIs.pois.length} 条真实POI数据（来源：高德API）
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
           <div className="lg:col-span-1 space-y-3">
@@ -351,6 +472,9 @@ export default function POIHeatPage() {
                 })}
               </div>
             </div>
+
+            <CalibrationInfo result={poiCalibration} title="POI数量校准" unit="个" />
+            <LineagePanel lineage={poiLineage} title="数据血缘" />
           </div>
 
           <div className="lg:col-span-3 space-y-3">
@@ -527,6 +651,7 @@ export default function POIHeatPage() {
           </div>
         </div>
 
+        <SmartRecommend />
         <div className="mt-6 text-center text-[10px] text-gray-400">
           POI 热力分布 — 密度与活力的城市心跳
         </div>

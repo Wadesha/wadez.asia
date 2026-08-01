@@ -2,19 +2,41 @@
 
 import { useState, useMemo } from 'react';
 import Head from 'next/head';
-import { 
-  getCityTrafficData, 
-  getAllCities, 
+import dynamic from 'next/dynamic';
+import {
+  getCityTrafficData,
+  getAllCities,
   filterRoads,
   RoadSegment,
   levelNames,
   congestionColors,
 } from '@/lib/traffic-capacity-data';
+import SmartRecommend from '@/components/SmartRecommend';
+
+const TrafficCapacityMap = dynamic(
+  () => import('@/components/TrafficCapacityMap'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-[500px] flex items-center justify-center bg-gray-100 rounded-xl border border-gray-200 text-sm text-gray-400">
+        地图加载中...
+      </div>
+    ),
+  }
+);
+
+const congestionLabels: Record<RoadSegment['congestionLevel'], string> = {
+  free: '畅通',
+  slow: '缓行',
+  congested: '拥堵',
+  blocked: '严重拥堵',
+};
 
 export default function TrafficCapacityPage() {
   const cities = getAllCities();
   const [selectedCity, setSelectedCity] = useState(cities[0]);
   const [selectedLevel, setSelectedLevel] = useState<RoadSegment['level'] | undefined>();
+  const [selectedRoad, setSelectedRoad] = useState<RoadSegment | undefined>();
 
   const cityData = useMemo(() => getCityTrafficData(selectedCity), [selectedCity]);
   const filteredRoads = useMemo(() => {
@@ -22,9 +44,24 @@ export default function TrafficCapacityPage() {
     return filterRoads(cityData, selectedLevel);
   }, [cityData, selectedLevel]);
 
+  // 计算地图中心点：所有道路起点经纬度平均值
+  const mapCenter = useMemo<[number, number]>(() => {
+    if (!cityData || cityData.roads.length === 0) {
+      return [116.4074, 39.9042];
+    }
+    const roads = cityData.roads;
+    const avgLng = roads.reduce((s, r) => s + r.start.lng, 0) / roads.length;
+    const avgLat = roads.reduce((s, r) => s + r.start.lat, 0) / roads.length;
+    return [avgLng, avgLat];
+  }, [cityData]);
+
   if (!cityData) return null;
 
   const { stats, indicators, zones } = cityData;
+
+  const handleRoadClick = (road: RoadSegment) => {
+    setSelectedRoad(road);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -60,6 +97,66 @@ export default function TrafficCapacityPage() {
             <span className="text-gray-600">平均饱和度: <strong>{stats.avgCongestion}%</strong></span>
             <span className="text-gray-600">路网密度: <strong>{stats.roadDensity}km/km²</strong></span>
           </div>
+        </div>
+
+        {/* 交通承载力地图 */}
+        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+          <h3 className="text-sm font-medium text-gray-700 mb-3">路网拥堵态势图</h3>
+          <TrafficCapacityMap
+            roads={filteredRoads}
+            center={mapCenter}
+            height="h-[500px]"
+            onRoadClick={handleRoadClick}
+            selectedId={selectedRoad?.id}
+          />
+          {/* 选中道路详情 */}
+          {selectedRoad && (
+            <div className="mt-3 border border-gray-200 rounded-lg p-3 bg-gray-50">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-3 h-3 rounded"
+                    style={{ background: congestionColors[selectedRoad.congestionLevel] }}
+                  />
+                  <span className="text-sm font-medium text-gray-900">{selectedRoad.name}</span>
+                  <span className="text-xs text-gray-500">{levelNames[selectedRoad.level]}</span>
+                </div>
+                <button
+                  onClick={() => setSelectedRoad(undefined)}
+                  className="text-xs text-gray-400 hover:text-gray-600"
+                >
+                  关闭
+                </button>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                <div>
+                  <div className="text-gray-500">速度</div>
+                  <div className="font-bold text-gray-900 mt-0.5">{selectedRoad.speed} km/h</div>
+                </div>
+                <div>
+                  <div className="text-gray-500">流量/容量</div>
+                  <div className="font-bold text-gray-900 mt-0.5">
+                    {selectedRoad.volume.toLocaleString()} / {selectedRoad.capacity.toLocaleString()}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-gray-500">饱和度</div>
+                  <div className="font-bold text-gray-900 mt-0.5">
+                    {Math.round((selectedRoad.volume / selectedRoad.capacity) * 100)}%
+                  </div>
+                </div>
+                <div>
+                  <div className="text-gray-500">拥堵等级</div>
+                  <div
+                    className="font-bold mt-0.5"
+                    style={{ color: congestionColors[selectedRoad.congestionLevel] }}
+                  >
+                    {congestionLabels[selectedRoad.congestionLevel]}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -269,6 +366,7 @@ export default function TrafficCapacityPage() {
           </div>
         </div>
 
+        <SmartRecommend />
         {/* 底部说明 */}
         <div className="mt-4 text-xs text-gray-400 text-center">
           数据来源：模拟数据 | 仅供演示

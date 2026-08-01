@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { loadAMap, isAMapConfigured } from "@/lib/load-amap";
 import type { LocationScore } from "@/lib/business-siting-data";
+import SchematicMap from "@/components/SchematicMap";
+import OsmMap from "@/components/OsmMap";
+import { useMapMode } from "@/context/MapModeContext";
 
 interface BusinessSitingMapProps {
   locations: LocationScore[];
@@ -28,25 +32,95 @@ export default function BusinessSitingMap({
   onLocationClick,
   selectedId,
 }: BusinessSitingMapProps) {
+  const { mode } = useMapMode();
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
+  const [mapError, setMapError] = useState<string | null>(null);
+
+  const schematicProps = useMemo(() => {
+    const points: Array<{ lng: number; lat: number; id?: string | number; category?: 0 | 1 | 2 | 3 | 4; r?: number; onClick?: () => void }> = [];
+    const bestLocation = locations.length > 0 ? locations.reduce((best, loc) => loc.overallScore > best.overallScore ? loc : best, locations[0]) : null;
+
+    locations.forEach((loc) => {
+      points.push({
+        lng: loc.lng,
+        lat: loc.lat,
+        id: loc.id,
+        category: 0,
+        r: 6,
+        onClick: () => onLocationClick?.(loc),
+      });
+
+      for (let i = 0; i < Math.min(loc.nearbyCompetitors, 3); i++) {
+        const angle = (i / Math.max(1, loc.nearbyCompetitors)) * Math.PI * 2;
+        const dist = 0.003 + (i % 2) * 0.002;
+        points.push({
+          lng: loc.lng + Math.cos(angle) * dist,
+          lat: loc.lat + Math.sin(angle) * dist,
+          id: `${loc.id}-comp-${i}`,
+          category: 2,
+          r: 3,
+        });
+      }
+
+      for (let i = 0; i < Math.min(loc.nearbySupporters, 4); i++) {
+        const angle = ((i + 0.5) / Math.max(1, loc.nearbySupporters)) * Math.PI * 2;
+        const dist = 0.004 + (i % 3) * 0.0015;
+        points.push({
+          lng: loc.lng + Math.cos(angle) * dist,
+          lat: loc.lat + Math.sin(angle) * dist,
+          id: `${loc.id}-supp-${i}`,
+          category: 3,
+          r: 2,
+        });
+      }
+    });
+
+    const markers = bestLocation ? [{
+      lng: bestLocation.lng,
+      lat: bestLocation.lat,
+      label: "最优候选",
+      kind: 3 as const,
+    }] : [];
+
+    const legend = [
+      { label: "候选址", kind: "point" as const, category: 0 },
+      { label: "竞品", kind: "point" as const, category: 2 },
+      { label: "配套", kind: "point" as const, category: 3 },
+    ];
+
+    return { points, markers, legend, bestLocation };
+  }, [locations, onLocationClick]);
 
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
-    const AMap = (window as any).AMap;
-    if (!AMap) return;
+    if (!isAMapConfigured()) {
+      setMapError("高德地图 API Key 未配置");
+      return;
+    }
 
-    const map = new AMap.Map(mapRef.current, {
-      center,
-      zoom,
-      mapStyle: "amap://styles/light",
-    });
-    mapInstanceRef.current = map;
+    let cancelled = false;
+    loadAMap()
+      .then((AMap) => {
+        if (cancelled || !mapRef.current || mapInstanceRef.current) return;
+        const map = new AMap.Map(mapRef.current, {
+          center,
+          zoom,
+          mapStyle: "amap://styles/light",
+        });
+        mapInstanceRef.current = map;
+      })
+      .catch((err) => {
+        if (!cancelled) setMapError(err.message);
+      });
 
     return () => {
-      map.destroy();
-      mapInstanceRef.current = null;
+      cancelled = true;
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.destroy();
+        mapInstanceRef.current = null;
+      }
     };
   }, [center, zoom]);
 
@@ -106,6 +180,44 @@ export default function BusinessSitingMap({
     );
     map.setBounds(bounds, [50, 50, 50, 50], false);
   }, [locations, selectedId, onLocationClick]);
+
+  if (mode === "schematic") {
+    return (
+      <div className={`w-full ${height}`}>
+        <SchematicMap
+          height={500}
+          points={schematicProps.points}
+          markers={schematicProps.markers}
+          legend={schematicProps.legend}
+          title="商业选址示意图"
+          showCompass
+        />
+      </div>
+    );
+  }
+
+  if (mode === "osm") {
+    return (
+      <div className={`w-full ${height}`}>
+        <OsmMap
+          width={800}
+          height={500}
+          points={schematicProps.points}
+          markers={schematicProps.markers}
+          legend={schematicProps.legend}
+          title="商业选址示意图"
+        />
+      </div>
+    );
+  }
+
+  if (mapError) {
+    return (
+      <div className={`w-full ${height} bg-gray-100 rounded-lg flex items-center justify-center`}>
+        <span className="text-gray-400 text-xs">{mapError}</span>
+      </div>
+    );
+  }
 
   return (
     <div className="relative rounded-xl overflow-hidden border border-gray-200">

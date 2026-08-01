@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import {
   getForestCities,
   FOREST_TYPE_LABELS,
@@ -9,6 +10,15 @@ import {
   type ForestArea,
   type ForestType,
 } from "@/lib/forest-resource-data";
+
+const ForestResourceMap = dynamic(() => import("@/components/ForestResourceMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-[400px] bg-gray-100 rounded-xl flex items-center justify-center">
+      <span className="text-gray-400 text-xs">地图加载中...</span>
+    </div>
+  ),
+});
 
 export default function ForestResourcePage() {
   const cities = getForestCities();
@@ -40,6 +50,10 @@ export default function ForestResourcePage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-100 rounded-md">
+                <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+                <span className="text-[10px] text-gray-500">模拟数据</span>
+              </div>
               <select value={cityId} onChange={(e) => { setCityId(e.target.value); setSelectedForest(null); }} className="px-2 py-1.5 text-xs bg-gray-100 border border-gray-200 rounded-md text-gray-700">
                 {cities.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
               </select>
@@ -57,7 +71,6 @@ export default function ForestResourcePage() {
             <span>蓄积量：<b className="text-gray-800">{(currentCity.totalStock / 10000).toFixed(1)}万m³</b></span>
             <span className="text-gray-200">|</span>
             <span>保护区：<b className="text-blue-600">{currentCity.protectedAreas}</b></span>
-            <span className="ml-auto text-gray-400">v1.0.0</span>
           </div>
         </div>
 
@@ -82,7 +95,17 @@ export default function ForestResourcePage() {
             </div>
           </div>
 
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-3">
+            <div className="bg-white border border-gray-200 rounded-xl p-2">
+              <ForestResourceMap
+                forests={filteredForests}
+                center={currentCity.center}
+                zoom={9}
+                height="h-[400px]"
+                onForestClick={setSelectedForest}
+                selectedId={selectedForest?.id}
+              />
+            </div>
             {selectedForest ? (
               <div className="space-y-3">
                 <div className="bg-white border border-gray-200 rounded-xl p-4">
@@ -91,6 +114,12 @@ export default function ForestResourcePage() {
                       <h2 className="text-base font-bold text-gray-900">{selectedForest.name}</h2>
                       <p className="text-[10px] text-gray-500 mt-0.5">{FOREST_TYPE_LABELS[selectedForest.type]}{selectedForest.protectionLevel ? ` · ${selectedForest.protectionLevel === "national" ? "国家级" : selectedForest.protectionLevel === "provincial" ? "省级" : "市级"}保护区` : ""}</p>
                     </div>
+                    <span
+                      className="px-2 py-1 rounded-lg text-[10px] text-white"
+                      style={{ backgroundColor: FOREST_TYPE_COLORS[selectedForest.type] }}
+                    >
+                      {FOREST_TYPE_LABELS[selectedForest.type]}
+                    </span>
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                     <div className="bg-gray-50 rounded-lg p-2.5">
@@ -111,9 +140,49 @@ export default function ForestResourcePage() {
                     </div>
                   </div>
                 </div>
+
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
+                  <h3 className="text-xs font-semibold text-gray-800 mb-3">覆盖率与蓄积量评估</h3>
+                  <div className="space-y-2.5">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[11px] text-gray-600">森林覆盖率</span>
+                        <span className="text-[11px] font-medium text-green-600">{selectedForest.coverage}%</span>
+                      </div>
+                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-green-500 rounded-full" style={{ width: `${selectedForest.coverage}%` }} />
+                      </div>
+                      <div className="text-[9px] text-gray-400 mt-0.5">
+                        {selectedForest.coverage >= 75 ? "优 - 高覆盖林区" : selectedForest.coverage >= 60 ? "良 - 中等覆盖" : "一般 - 需加强保护"}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[11px] text-gray-600">单位蓄积量水平</span>
+                        <span className="text-[11px] font-medium text-blue-600">{Math.round(selectedForest.stock / selectedForest.area)} m³/公顷</span>
+                      </div>
+                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min((selectedForest.stock / selectedForest.area / 200) * 100, 100)}%` }} />
+                      </div>
+                      <div className="text-[9px] text-gray-400 mt-0.5">
+                        全国平均约90 m³/公顷 · {selectedForest.stock / selectedForest.area >= 90 ? "高于全国平均" : "低于全国平均"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-green-50 border border-green-200 rounded-xl p-3">
+                  <h3 className="text-xs font-semibold text-green-800 mb-2">🌲 生态价值评估</h3>
+                  <ul className="space-y-1">
+                    <li className="text-[11px] text-green-700">· 碳汇能力：约 {(selectedForest.stock * 0.45).toFixed(0)} 吨碳当量</li>
+                    <li className="text-[11px] text-green-700">· 年释氧量：约 {(selectedForest.area * 0.8).toFixed(0)} 吨</li>
+                    <li className="text-[11px] text-green-700">· 涵养水源：约 {(selectedForest.area * 30).toFixed(0)} m³/年</li>
+                    <li className="text-[11px] text-green-700">· 水土保持：减少土壤侵蚀约 {(selectedForest.area * 0.5).toFixed(0)} 吨/年</li>
+                  </ul>
+                </div>
               </div>
             ) : (
-              <div className="bg-white border border-gray-200 rounded-xl p-8 flex items-center justify-center h-96">
+              <div className="bg-white border border-gray-200 rounded-xl p-8 flex items-center justify-center h-64">
                 <div className="text-center text-gray-400"><div className="text-4xl mb-2">🌲</div><p className="text-xs">请从左侧选择林地区域查看详情</p></div>
               </div>
             )}
